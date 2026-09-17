@@ -21,6 +21,10 @@ def get_config():
     config.env_name = "pick"
     config.language_instruction = "pick up the cube"
 
+    # Camera serials for this robot workstation.
+    config.side_camera_id = "38651013_left"
+    config.wrist_camera_id = "12841040_left"
+
     delta = 0.2
     config.bounds = np.array([[0.48-delta, 0.48+delta], [0.007-delta, 0.007+delta], [0.1, 0.45]])
     config.reset_joints = np.array([

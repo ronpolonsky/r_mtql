@@ -1,6 +1,8 @@
 import os
 import shutil
+import termios
 import time
+import tty
 from typing import Dict
 
 import cv2
@@ -39,6 +41,11 @@ flags.DEFINE_bool(
 # Saved MP4 resolution (width, height); low-res to save disk and encoding time
 flags.DEFINE_integer("video_save_width", 320, "Width of saved MP4 frames.")
 flags.DEFINE_integer("video_save_height", 240, "Height of saved MP4 frames.")
+flags.DEFINE_string(
+    "target_dir_prefix",
+    "target_",
+    "Prefix for target-group output directories.",
+)
 
 
 def smallest_missing_id(dir_path: str) -> int:
@@ -52,6 +59,21 @@ def smallest_missing_id(dir_path: str) -> int:
     while i in ids:
         i += 1
     return i
+
+
+def wait_for_space_start() -> None:
+    print("waiting to start - press SPACE", flush=True)
+    terminal = open("/dev/tty", "r")
+    fd = terminal.fileno()
+    original = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        while terminal.read(1) != " ":
+            pass
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, original)
+        terminal.close()
+    print("STARTING TRAJECTORY", flush=True)
 
 
 def collect_trajectory(
@@ -74,7 +96,8 @@ def collect_trajectory(
 
     t_reset0 = time.perf_counter()
     env.reset()
-    print("[between-episode] env.reset()={:.2f}s (start of episode)".format(time.perf_counter() - t_reset0))
+    print("[between-episode] env.reset()={:.2f}s (robot is at base)".format(time.perf_counter() - t_reset0))
+    wait_for_space_start()
 
     start_recording = False
     _episode_success = None
@@ -108,7 +131,9 @@ def collect_trajectory(
                 time.sleep(sleep_left)
 
             control_timestamps["control_start"] = time_ms()
-            action_info = env.step(action)
+            # Candy-scoop collection matches gripper-disabled evaluation:
+            # execute only the six arm dimensions and never call Robotiq goto().
+            action_info = env.step_arm_only(action[:6])
 
             control_timestamps["step_end"] = time_ms()
             action_info.update(controller_action_info)
@@ -237,12 +262,14 @@ def run_and_route_one(
     success = result.get("success", False)
     print(f"Outcome: {'success' if success else 'failure'}")
 
-    if not success:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        print("Failure — discarded temp data.")
-        return {"dest_dir": None, "id": None, "result": result}
-
-    outcome_root = os.path.join(base_dir, "success")
+    outcome_name = "success" if success else "failure"
+    target_count = getattr(env, "target_count", None)
+    if target_count is None:
+        outcome_root = os.path.join(base_dir, outcome_name)
+    else:
+        outcome_root = os.path.join(base_dir, f"{FLAGS.target_dir_prefix}{int(target_count)}", outcome_name)
+        print(f"Target group: {int(target_count)}")
+    print(f"Saving {outcome_name} trajectory.")
     new_id = smallest_missing_id(outcome_root)
     dest_dir = os.path.join(outcome_root, str(new_id))
     os.makedirs(outcome_root, exist_ok=True)

@@ -126,15 +126,41 @@ class EnvClient:
         response = self._call_operation("create_env", prepared_request)
         return response["env_id"], response["task_description"]
     
-    def reset(self, env_id: str) -> Tuple[Dict[str, Any], bool]:
-        """Reset a environment."""
-        response = self._call_operation("reset", {"env_id": env_id})
+    def reset(
+        self,
+        env_id: str,
+        eval_episode: int | None = None,
+        eval_num_episodes: int | None = None,
+    ) -> Tuple[Dict[str, Any], bool]:
+        """Reset an environment, optionally carrying evaluation progress."""
+        request = {"env_id": env_id}
+        if eval_episode is not None:
+            request["eval_episode"] = int(eval_episode)
+        if eval_num_episodes is not None:
+            request["eval_num_episodes"] = int(eval_num_episodes)
+        response = self._call_operation("reset", request)
         observation = response["observation"]
         return observation, response["done"]
     
-    def step(self, env_id: str, action: np.ndarray) -> Tuple[np.ndarray, str]:
-        """Step the environment. Returns (real_executed_action, action_type)."""
-        response = self._call_operation("step", {"env_id": env_id, "action": action})
+    def step(
+        self,
+        env_id: str,
+        action: np.ndarray,
+        gripper_only: bool = False,
+        allow_human_override: bool = True,
+        control_gripper: bool = True,
+    ) -> Tuple[np.ndarray, str]:
+        """Step the environment, optionally allowing only gripper override."""
+        response = self._call_operation(
+            "step",
+            {
+                "env_id": env_id,
+                "action": action,
+                "gripper_only": gripper_only,
+                "allow_human_override": allow_human_override,
+                "control_gripper": control_gripper,
+            },
+        )
         real_action = np.array(response.get("action", action))
         action_type = response.get("action_type", "policy")
         return real_action, action_type
@@ -184,21 +210,32 @@ class EnvClientWrapper:
                     logging.warning(f"{op_name} recovery failed ({e}); retrying recovery...")
                     time.sleep(10)
     
-    def reset(self):
+    def reset(self, eval_episode=None, eval_num_episodes=None):
         """Reset the environment and return observation."""
-        observation, _ = self._call("reset", lambda: self.client.reset(self.env_id))
+        observation, _ = self._call(
+            "reset",
+            lambda: self.client.reset(
+                self.env_id,
+                eval_episode=eval_episode,
+                eval_num_episodes=eval_num_episodes,
+            ),
+        )
         return observation
     
-    def step(self, action):
-        """Step the environment.
-        
-        Args:
-            action: Action to take (policy output).
-            
-        Returns:
-            Tuple of (real_executed_action, action_type) where action_type is "policy" or "human".
-        """
-        return self._call("step", lambda: self.client.step(self.env_id, action))
+    def step(
+        self, action, gripper_only=False, allow_human_override=True, control_gripper=True
+    ):
+        """Step the environment, optionally restricting human override to gripper."""
+        return self._call(
+            "step",
+            lambda: self.client.step(
+                self.env_id,
+                action,
+                gripper_only=gripper_only,
+                allow_human_override=allow_human_override,
+                control_gripper=control_gripper,
+            ),
+        )
 
     def get_observation(self):
         """Get the observation of the environment."""

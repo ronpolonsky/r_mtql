@@ -188,13 +188,14 @@ class LightPlugDetector:
         return success, False
 
 
-def success_detector_manual():
+def success_detector_manual(force_prompt=False):
     """Non-blocking manual episode override via stdin (when input is pending).
 
     Returns one of:
     - "keep_going": no input queued, or user chose 3
     - "success": user entered 1
     - "reset": user entered 2 (end episode without success)
+    - "discard": user entered 4 (discard attempt and retry without counting it)
 
     Uses /dev/tty when available so it works even if stdin is redirected.
     """
@@ -227,12 +228,15 @@ def success_detector_manual():
         except Exception:
             return False
 
-    if not _pending_line():
-        # No user input queued; do not block
+    if not force_prompt and not _pending_line():
+        # No user input queued; do not block during normal policy execution.
         return "keep_going"
 
     while True:
-        choice = _readline("[manual] Enter 1 for success, 2 for reset, 3 for keep going, then ENTER:")
+        choice = _readline(
+            "[manual] Enter 1 for success, 2 for reset, 3 for keep going, "
+            "4 for discard, then ENTER:"
+        )
         if not choice:
             return "keep_going"
         choice = choice.strip()
@@ -245,7 +249,13 @@ def success_detector_manual():
         if choice == "3":
             print("[manual] Keep going.")
             return "keep_going"
-        print("[manual] Invalid input. Please type 1 (success), 2 (reset), or 3 (keep going), then ENTER:")
+        if choice == "4":
+            print("[manual] Discarding episode; it will not count.")
+            return "discard"
+        print(
+            "[manual] Invalid input. Please type 1 (success), 2 (reset), "
+            "3 (keep going), or 4 (discard), then ENTER:"
+        )
 
 
 def _zed_frame_bgr_depth_intr(zed, image_mat, depth_mat):

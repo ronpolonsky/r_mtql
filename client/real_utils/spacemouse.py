@@ -14,6 +14,8 @@ class SpaceMousePolicy:
         # One-shot flags for keyboard A/B (e.g. calibration); set by GUI, read and cleared by get_info()
         self._virtual_success = False
         self._virtual_failure = False
+        self._gripper_command = 0.0
+        self._gripper_button_pressed = False
         
     def get_action(self):
         return self.spacemouse.get_action()
@@ -22,7 +24,7 @@ class SpaceMousePolicy:
         """Forward pass: get action from spacemouse and return 7D action (6D velocities + 1D gripper).
         
         Args:
-            obs: Observation dictionary (not used, but required for API compatibility)
+            obs: Observation dictionary containing the measured robot state
             include_info: If True, return (action, info_dict), else return action only.
             
         Returns:
@@ -40,12 +42,17 @@ class SpaceMousePolicy:
         lin_vel = raw_action[:3] * self.max_lin_vel
         rot_vel = raw_action[3:6] * self.max_rot_vel
         
-        # Gripper control: button 0 typically controls gripper
-        # 1.0 = open, -1.0 = close (matching VRPolicy convention)
-        if len(buttons) > 0 and buttons[0]:
-            gripper_vel = 1.0  # Close gripper
-        else:
-            gripper_vel = -1.0   # Open gripper
+        # Toggle the gripper once on each button-0 press. The normalized measured
+        # width is 1 when open and 0 when closed; positive velocity closes.
+        gripper_button_pressed = bool(len(buttons) > 0 and buttons[0])
+        if gripper_button_pressed and not self._gripper_button_pressed:
+            if self._gripper_command == 0.0:
+                gripper_position = float(obs["robot_state"]["gripper_position"])
+                self._gripper_command = 1.0 if gripper_position >= 0.5 else -1.0
+            else:
+                self._gripper_command *= -1.0
+        self._gripper_button_pressed = gripper_button_pressed
+        gripper_vel = self._gripper_command
         
         # Concatenate to 7D action
         action = np.concatenate([lin_vel, rot_vel, [gripper_vel]])
@@ -82,6 +89,8 @@ class SpaceMousePolicy:
         self.movement_enabled = False
         self._virtual_success = False
         self._virtual_failure = False
+        self._gripper_command = 0.0
+        self._gripper_button_pressed = False
 
 class SpaceMouseExpert:
     """

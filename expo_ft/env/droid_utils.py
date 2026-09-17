@@ -5,11 +5,17 @@ import numpy as np
 from tqdm import tqdm
 
 def _discover_episode_dirs(base_path):
-    dirs = [d for d in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, d))]
-    # Keep only numeric directory names (episode indices); skip e.g. action_videos, lerobot
-    dirs = [d for d in dirs if d.isdigit()]
-    dirs = sorted(dirs, key=lambda x: int(x))
-    return [os.path.join(base_path, d) for d in dirs]
+    dirs = []
+    for root, _, files in os.walk(base_path):
+        if "traj.hdf5" in files and os.path.basename(root).isdigit():
+            dirs.append(root)
+    dirs.sort(
+        key=lambda path: tuple(
+            int(part) if part.isdigit() else part
+            for part in os.path.relpath(path, base_path).split(os.sep)
+        )
+    )
+    return dirs
 
 def process_droid_dataset(
     datapath, 

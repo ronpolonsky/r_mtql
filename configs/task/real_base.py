@@ -20,7 +20,7 @@ def get_config():
     config.randomize_high = np.array([0.0, 0.0, 0.0, 0, 0, 0, 0])
 
     # REPLACE with your own ZED camera serials (see README "DROID Setup").
-    config.side_camera_id = "27904255_left"
+    config.side_camera_id = "29838012_left"
     config.wrist_camera_id = "12841040_left"
     
     # Observation image resize and control loop frequency.
@@ -40,4 +40,3 @@ def get_config():
     config.residual_action_xyzg = False
 
     return config
-

@@ -54,7 +54,10 @@ _spacemouse_policy: Optional[Any] = None
 _HUMAN_OVERRIDE_NORM_THRESHOLD = 1e-4
 
 
-def _get_human_override_action(task_config: Optional[Any] = None) -> tuple:
+def _get_human_override_action(
+    task_config: Optional[Any] = None,
+    observation: Optional[Any] = None,
+) -> tuple:
     """Return (action_7d or None, is_human). Assumes 7D action space."""
     global _spacemouse_policy
     try:
@@ -64,8 +67,13 @@ def _get_human_override_action(task_config: Optional[Any] = None) -> tuple:
                 max_lin_vel=task_config.collect_max_lin_vel,
                 max_rot_vel=task_config.collect_max_rot_vel,
             )
-        action_7d, _ = _spacemouse_policy.forward(None, include_info=True)
-        is_active = np.linalg.norm(action_7d[:6]) > _HUMAN_OVERRIDE_NORM_THRESHOLD
+        action_7d, _ = _spacemouse_policy.forward(
+            observation, include_info=True
+        )
+        is_active = (
+            np.linalg.norm(action_7d[:6]) > _HUMAN_OVERRIDE_NORM_THRESHOLD
+            or abs(float(action_7d[6])) > _HUMAN_OVERRIDE_NORM_THRESHOLD
+        )
         return (action_7d, True) if is_active else (None, False)
     except Exception as e:
         logging.getLogger(__name__).warning("Spacemouse unavailable (%s), using policy action.", e)
@@ -110,6 +118,12 @@ async def _handle_environment_request(websocket: _server.ServerConnection):
                     if env is None:
                         response = {"status": "error", "message": f"Environment {env_id} not found"}
                     else:
+                        # Evaluation can attach progress metadata to the reset so
+                        # the task display can show episode/total beside its target.
+                        if request.get("eval_episode") is not None:
+                            env.eval_episode = int(request["eval_episode"])
+                        if request.get("eval_num_episodes") is not None:
+                            env.eval_num_episodes = int(request["eval_num_episodes"])
                         obs = env.reset()
                         response = {
                             "status": "success",
@@ -134,17 +148,36 @@ async def _handle_environment_request(websocket: _server.ServerConnection):
                             )
                             sent_action = np.where(np.isfinite(sent_action), sent_action, 0.0)
                         real_action = sent_action.copy()
+                        gripper_only = bool(request.get("gripper_only", False))
+                        control_gripper = bool(request.get("control_gripper", True))
+                        allow_human_override = bool(
+                            request.get("allow_human_override", True)
+                        )
                         action_type = "policy"
                         is_human = False
-                        if _task_config is not None and _task_config.env_type == "droid":
-                            sm_action, is_human = _get_human_override_action(_task_config)
+                        if (
+                            allow_human_override
+                            and _task_config is not None
+                            and _task_config.env_type == "droid"
+                        ):
+                            sm_action, is_human = _get_human_override_action(
+                                _task_config,
+                                getattr(env, "prev_obs", None),
+                            )
                             if is_human and sm_action is not None:
-                                real_action[:6] = sm_action[:6]
-                                real_action[6] = sm_action[6]
+                                if gripper_only:
+                                    real_action[:6] = 0.0
+                                    real_action[6] = sm_action[6]
+                                else:
+                                    real_action[:6] = sm_action[:6]
+                                    real_action[6] = sm_action[6]
                                 action_type = "human"
                         sent_is_invalid = np.allclose(sent_action, -1.0)
                         if is_human or not sent_is_invalid:
-                            step_result = env.step(real_action)
+                            if control_gripper:
+                                step_result = env.step(real_action)
+                            else:
+                                step_result = env.step_arm_only(real_action[:6])
                             executed_action = np.array(
                                 step_result["executed_action"],
                                 dtype=np.float64,
@@ -184,7 +217,7 @@ async def _handle_environment_request(websocket: _server.ServerConnection):
                         response = {
                             "status": "success",
                             "done": bool(done),
-                            "success": bool(success),
+                            "success": None if success is None else bool(success),
                             "reward": float(reward),
                             "mask": float(mask),
                         }

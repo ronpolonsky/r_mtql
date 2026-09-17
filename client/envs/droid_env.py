@@ -33,6 +33,8 @@ class DroidEnv(RobotEnv):
         camera_intrinsics = None,
         camera_extrinsics = None,
         record_camera = None,
+        reset_gripper = True,
+        launch_controller = True,
         **kwargs,
     ):
         super().__init__(
@@ -41,6 +43,8 @@ class DroidEnv(RobotEnv):
             reset_joints=reset_joints,
             randomize_low=randomize_low,
             randomize_high=randomize_high,
+            reset_gripper=reset_gripper,
+            launch_controller=launch_controller,
         )
         self.camera_reader.set_trajectory_mode()
         
@@ -86,11 +90,16 @@ class DroidEnv(RobotEnv):
         time_stop = self.auto_reset_due()
         reached_boundary = self.reached_boundary(raw_obs)
 
-        manual = success_detector_manual()
+        manual = success_detector_manual(
+            force_prompt=bool(time_stop or reached_boundary)
+        )
+        discarded = manual == "discard"
         if manual == "success":
             done, success, manual_stop = True, True, True
         elif manual == "reset":
             done, success, manual_stop = True, False, True
+        elif discarded:
+            done, success, manual_stop = True, None, True
         else:
             manual_stop = False
             success, terminate = self.detect(raw_obs)
@@ -99,20 +108,25 @@ class DroidEnv(RobotEnv):
 
         if done:
             print(f"Done! Success: {success}, Time stop: {time_stop}, Manual stop: {manual_stop}, Reached boundary: {reached_boundary}")
-            if self.video_dir and self._raw_frame_buffer:
+            if self.video_dir and not discarded and self._raw_frame_buffer:
                 save_episode_video_to_disk(
                     self._raw_frame_buffer, self.video_dir, self._ep_count
                 )
                 self._raw_frame_buffer = []
-            if self.video_dir and self._record_frame_buffer:
+            if self.video_dir and not discarded and self._record_frame_buffer:
                 save_episode_video_to_disk(
                     self._record_frame_buffer, self.video_dir, self._ep_count,
                     prefix="record",
                 )
                 self._record_frame_buffer = []
-            if self.video_dir:
+            if self.video_dir and not discarded:
                 self._ep_count += 1
-        self.done, self.success, self.reward, self.info = done, success, 1.0 if success else 0.0, {}
+        self.done, self.success, self.reward, self.info = (
+            done,
+            success,
+            1.0 if success else 0.0,
+            {"discarded": discarded},
+        )
         reward = 1.0 if success else 0.0
         mask = 0.0 if done else 1.0
         return done, success, reward, mask
@@ -201,6 +215,29 @@ class DroidEnv(RobotEnv):
         action_info["executed_action"] = executed_action
         return action_info
 
+    def step_arm_only(self, action):
+        """Execute Cartesian arm motion without sending any gripper command."""
+        self._steps_since_reset += 1
+        action = np.asarray(action, dtype=np.float64).reshape(-1)[:6]
+        if self.bounds is not None and self.prev_obs is not None and len(action) >= 3:
+            pos = np.asarray(self.prev_obs["robot_state"]["cartesian_position"][:3], dtype=np.float64)
+            lows = np.asarray(self.bounds[:, 0], dtype=np.float64)
+            highs = np.asarray(self.bounds[:, 1], dtype=np.float64)
+            for axis in range(3):
+                if (pos[axis] <= lows[axis] and action[axis] < 0) or (
+                    pos[axis] >= highs[axis] and action[axis] > 0
+                ):
+                    action[axis] = 0.0
+        self._robot.update_pose(action, velocity=True, blocking=False)
+        self._last_gripper_velocity = 0.0
+        # Preserve the normal DROID action schema for offline training while
+        # never issuing a gripper command.
+        return {
+            "cartesian_velocity": action.copy(),
+            "gripper_velocity": 0.0,
+            "executed_action": np.concatenate([action, [0.0]]),
+        }
+
     def auto_reset_due(self):
         if self.ignore_auto_reset:
             return False
@@ -258,9 +295,11 @@ class PickBlocksEnv(DroidEnv):
         self._robot.update_joints(self.reset_joints, velocity=False, blocking=True, cartesian_noise=cartesian_noise)
         print("reset with random x/y offset: ", cartesian_noise)
 
-        # open gripper
-        self._robot.update_gripper(0, velocity=False, blocking=True)
-        time.sleep(1)
+        # Respect the task-level reset_gripper setting. Candy-scoop evaluation
+        # must preserve the operator's existing grip instead of opening it.
+        if self.reset_gripper:
+            self._robot.update_gripper(0, velocity=False, blocking=True)
+            time.sleep(1)
         # move up
         super().move_up(steps=1, velocity=2)
         time.sleep(1)
@@ -277,6 +316,182 @@ class PickBlocksEnv(DroidEnv):
 
     def _init_detector(self):
         self.pick_detector = PickBlocksDetector()
+
+class CandyScoopEnv(DroidEnv):
+    """Candy scooping with randomized visual goals and manual labels."""
+
+    _TARGET_CUE_IMAGE_KEYS = (
+        "exterior_image_1_left",
+        "exterior_image_2_left",
+    )
+
+    def __init__(
+        self,
+        min_target_count=1,
+        max_target_count=3,
+        target_seed=0,
+        include_target_cue=False,
+        reset_clearance_z=0.42,
+        reset_clearance_velocity=0.5,
+        reset_clearance_timeout=5.0,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.include_target_cue = bool(include_target_cue)
+        self.min_target_count = int(min_target_count)
+        self.max_target_count = int(max_target_count)
+        self.reset_clearance_z = float(reset_clearance_z)
+        self.reset_clearance_velocity = float(reset_clearance_velocity)
+        self.reset_clearance_timeout = float(reset_clearance_timeout)
+        if self.min_target_count < 1 or self.max_target_count < self.min_target_count:
+            raise ValueError("target counts must satisfy 1 <= min <= max")
+        self._target_rng = np.random.default_rng(target_seed)
+        self._target_bag = []
+        self.target_count = self.min_target_count
+        self.completed_count = 0
+
+    def _sample_target_count(self):
+        """Draw targets in shuffled balanced blocks."""
+        if not self._target_bag:
+            targets = np.arange(
+                self.min_target_count,
+                self.max_target_count + 1,
+                dtype=np.int32,
+            )
+            self._target_rng.shuffle(targets)
+            self._target_bag.extend(int(target) for target in targets)
+        return self._target_bag.pop()
+
+    @staticmethod
+    def _draw_target_cue(image, target_count):
+        """Draw three fixed goal slots, filling the requested scoop count."""
+        cue = np.array(image, copy=True)
+        height, width = cue.shape[:2]
+        radius = max(5, int(round(min(height, width) * 0.035)))
+        gap = 3 * radius
+        left = max(6, radius)
+        top = max(6, radius)
+        panel_right = min(width - 1, left + 4 * radius + 2 * gap)
+        panel_bottom = min(height - 1, top + 4 * radius)
+        cv2.rectangle(
+            cue,
+            (left - radius, top - radius),
+            (panel_right, panel_bottom),
+            (0, 0, 0),
+            thickness=-1,
+        )
+        center_y = top + radius
+        for index in range(3):
+            center = (left + radius + index * gap, center_y)
+            if index < target_count:
+                cv2.circle(cue, center, radius, (255, 255, 255), thickness=-1)
+            else:
+                cv2.circle(cue, center, radius, (255, 255, 255), thickness=2)
+        return cue
+
+    def _retract_to_clearance(self):
+        """Move straight up before the joint-space return, without gripper I/O."""
+        state, _ = self._robot.get_robot_state()
+        current_z = float(state["cartesian_position"][2])
+        target_z = self.reset_clearance_z
+        if self.bounds is not None:
+            # Keep a small margin below the configured workspace ceiling.
+            target_z = min(target_z, float(self.bounds[2, 1]) - 0.02)
+        if current_z >= target_z:
+            return
+
+        print(
+            f"RETRACTING VERTICALLY: z={current_z:.3f} -> {target_z:.3f} "
+            f"command={self.reset_clearance_velocity:.3f}",
+            flush=True,
+        )
+        deadline = time.monotonic() + self.reset_clearance_timeout
+        velocity = np.array(
+            [0.0, 0.0, self.reset_clearance_velocity, 0.0, 0.0, 0.0],
+            dtype=np.float64,
+        )
+        while current_z < target_z and time.monotonic() < deadline:
+            # update_pose with a 6D command never invokes update_gripper/goto.
+            self._robot.update_pose(velocity, velocity=True, blocking=False)
+            time.sleep(0.05)
+            state, _ = self._robot.get_robot_state()
+            current_z = float(state["cartesian_position"][2])
+
+        # Stop the Cartesian velocity policy before the joint-space return.
+        self._robot.update_pose(
+            np.zeros(6, dtype=np.float64), velocity=True, blocking=False
+        )
+        if current_z < target_z:
+            print(
+                f"WARNING: vertical retract stopped at z={current_z:.3f} "
+                f"before target {target_z:.3f}",
+                flush=True,
+            )
+
+    def reset(self):
+        """Sample a goal and return to reset joints without opening the gripper."""
+        self.target_count = self._sample_target_count()
+        self.completed_count = 0
+        unit = "time" if self.target_count == 1 else "times"
+        self.language_instruction = f"scoop candy {self.target_count} {unit}"
+        progress = getattr(self, "eval_episode", None)
+        total = getattr(self, "eval_num_episodes", None)
+        if progress is not None and total is not None:
+            print(
+                f"RETURNING TO BASE FOR EVALUATION {progress}/{total}",
+                flush=True,
+            )
+        else:
+            print("RETURNING TO BASE", flush=True)
+
+        self._before_reset()
+        self._retract_to_clearance()
+        self._steps_since_reset = 0
+        self._raw_frame_buffer = []
+        self._record_frame_buffer = []
+        if self.reset_random:
+            noise = np.random.uniform(low=self.randomize_low, high=self.randomize_high)
+        else:
+            noise = None
+        self._robot.update_joints(
+            self.reset_joints,
+            velocity=False,
+            blocking=True,
+            cartesian_noise=noise,
+        )
+        print()
+        print("=" * 48)
+        if progress is not None and total is not None:
+            print(
+                f"CANDY SCOOP TARGET: {self.target_count} "
+                f"(EVALUATION {progress}/{total})"
+            )
+        else:
+            print(f"CANDY SCOOP TARGET: {self.target_count}")
+        print("=" * 48)
+        print(flush=True)
+        return self.get_observation()
+
+    def transform_observation(self, raw_obs):
+        observation = super().transform_observation(raw_obs)
+        if self.include_target_cue:
+            for key in self._TARGET_CUE_IMAGE_KEYS:
+                observation[key] = self._draw_target_cue(
+                    observation[key],
+                    self.target_count,
+                )
+        observation["target_count"] = np.asarray(
+            self.target_count,
+            dtype=np.int32,
+        )
+        observation["prompt"] = self.language_instruction
+        return observation
+
+    def detect(self, raw_obs):
+        # Success is labeled manually. Reaching a workspace boundary ends the
+        # attempt as a failure so the robot can reset safely.
+        return False, self.reached_boundary(raw_obs)
+
 
 class Light2Env(DroidEnv):
     """Light task 2: success when yellow plug is no longer visible (unplugged).
@@ -341,6 +556,7 @@ class Light2Env(DroidEnv):
 
 __all__ = [
     "DroidEnv",
+    "CandyScoopEnv",
     "PickBlocksEnv",
     "Light2Env",
 ]
