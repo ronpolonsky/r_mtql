@@ -67,6 +67,11 @@ flags.DEFINE_string(
     "/dev/shm/expo-ft-robot-state-captures.jsonl",
     "JSONL file receiving states captured by pressing SPACE.",
 )
+flags.DEFINE_bool(
+    "space_resets_to_base",
+    False,
+    "When true, SPACE returns the robot to the task config reset_joints instead of saving a snapshot.",
+)
 
 
 
@@ -189,6 +194,7 @@ def _capture_if_requested(
     transformed_observation=None,
     action_record=None,
     inspector_config=None,
+    reset_to_base=None,
 ) -> None:
     if terminal is None:
         return
@@ -197,6 +203,12 @@ def _capture_if_requested(
         return
     key = terminal.read(1)
     if key != " ":
+        return
+
+    if reset_to_base is not None:
+        print("[RESET] Returning robot to task base joints...", flush=True)
+        reset_to_base()
+        print("[RESET COMPLETE] Robot is at task base joints.", flush=True)
         return
 
     record = _state_record(
@@ -242,12 +254,16 @@ def main(argv: list[str]) -> None:
         "move": FLAGS.move,
         "allow_gripper": FLAGS.allow_gripper,
         "launch_controller": FLAGS.launch_controller,
+        "space_resets_to_base": FLAGS.space_resets_to_base,
     }
     os.makedirs(os.path.dirname(FLAGS.capture_file) or ".", exist_ok=True)
     capture_terminal, original_terminal = _open_capture_terminal()
     capture_handle = open(FLAGS.capture_file, "a", buffering=1)
     print("State inspector started. The arm will not reset automatically.")
-    print("Move with the SpaceMouse; press SPACE to capture a full state/action snapshot; Ctrl-C to stop.")
+    if FLAGS.space_resets_to_base:
+        print("Move with the SpaceMouse; press SPACE to return to task base joints; Ctrl-C to stop.")
+    else:
+        print("Move with the SpaceMouse; press SPACE to capture a full state/action snapshot; Ctrl-C to stop.")
     print(f"Captures are written to {FLAGS.capture_file}")
     if capture_terminal is None:
         print("Warning: no controlling TTY; SPACE capture is unavailable.")
@@ -313,6 +329,7 @@ def main(argv: list[str]) -> None:
                 transformed_observation=policy_observation,
                 action_record=action_record,
                 inspector_config=inspector_config,
+                reset_to_base=env.reset if FLAGS.space_resets_to_base else None,
             )
 
             remaining = period - (time.monotonic() - loop_start)

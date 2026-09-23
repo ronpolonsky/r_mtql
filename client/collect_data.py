@@ -61,6 +61,26 @@ def smallest_missing_id(dir_path: str) -> int:
     return i
 
 
+CARD_COLOR_DIRS = {
+    "white": "card_white",
+    "black": "card_black",
+}
+
+
+def _get_card_route(env):
+    """Return (card_color, directory_name) for egg, otherwise None."""
+    raw_color = getattr(env, "card_color", None)
+    if raw_color is None:
+        return None
+    card_color = str(raw_color).strip().lower()
+    if card_color not in CARD_COLOR_DIRS:
+        raise ValueError(
+            "Egg collection requires --task_config.card_color=white or black; "
+            f"got {raw_color!r}"
+        )
+    return card_color, CARD_COLOR_DIRS[card_color]
+
+
 def wait_for_space_start() -> None:
     print("waiting to start - press SPACE", flush=True)
     terminal = open("/dev/tty", "r")
@@ -88,7 +108,9 @@ def collect_trajectory(
 
     traj_writer = None
     if save_filepath:
-        traj_writer = TrajectoryWriter(save_filepath, metadata=None, save_images=False)
+        card_route = _get_card_route(env)
+        metadata = {"card_color": card_route[0]} if card_route is not None else None
+        traj_writer = TrajectoryWriter(save_filepath, metadata=metadata, save_images=False)
 
     # Stream MP4 and HDF5 to avoid holding full episode in memory
     mp4_writers = {}
@@ -131,9 +153,12 @@ def collect_trajectory(
                 time.sleep(sleep_left)
 
             control_timestamps["control_start"] = time_ms()
-            # Candy-scoop collection matches gripper-disabled evaluation:
-            # execute only the six arm dimensions and never call Robotiq goto().
-            action_info = env.step_arm_only(action[:6])
+            if getattr(env, "control_gripper", False):
+                # Egg collection uses the full 7D arm + gripper action.
+                action_info = env.step(action)
+            else:
+                # Candy Scoop remains gripper-disabled, as before.
+                action_info = env.step_arm_only(action[:6])
 
             control_timestamps["step_end"] = time_ms()
             action_info.update(controller_action_info)
@@ -163,7 +188,7 @@ def collect_trajectory(
                     if isinstance(val, np.ndarray) and val.ndim == 3 and val.shape[-1] == 3:
                         out_path = os.path.join(video_dir, f"{key}.mp4")
                         mp4_writers[key] = imageio.get_writer(
-                            out_path, fps=30, format="ffmpeg", codec="libx264",
+                            out_path, fps=10, format="ffmpeg", codec="libx264",
                             output_params=["-preset", "ultrafast", "-crf", "28"],
                         )
                 print("start recording (streaming traj + MP4; low memory)")
@@ -263,8 +288,13 @@ def run_and_route_one(
     print(f"Outcome: {'success' if success else 'failure'}")
 
     outcome_name = "success" if success else "failure"
+    card_route = _get_card_route(env)
     target_count = getattr(env, "target_count", None)
-    if target_count is None:
+    if card_route is not None:
+        card_color, card_dir = card_route
+        outcome_root = os.path.join(base_dir, card_dir, outcome_name)
+        print(f"Card condition: {card_color}")
+    elif target_count is None:
         outcome_root = os.path.join(base_dir, outcome_name)
     else:
         outcome_root = os.path.join(base_dir, f"{FLAGS.target_dir_prefix}{int(target_count)}", outcome_name)
@@ -298,6 +328,7 @@ def main(_):
     FLAGS.task_config.gripper_action_space = "velocity"
     
     env = FLAGS.task_config.env(**FLAGS.task_config)
+    _get_card_route(env)
     # Teleop collection: end episodes on success/detector/manual/bounds only — not step budget.
     env.ignore_auto_reset = True
     task_config = FLAGS.task_config

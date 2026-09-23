@@ -22,8 +22,8 @@ def raw_frame_from_raw_obs(raw_obs, side_camera_id, wrist_camera_id):
     return np.concatenate([side, wrist], axis=1)
 
 
-def save_episode_video(frames, video_dir, ep_count, fps=30, quality=8, prefix="raw"):
-    """Save buffered raw frames to disk. Call when episode ends."""
+def save_episode_video(frames, video_dir, ep_count, fps=10, quality=8, prefix="raw"):
+    """Save buffered raw frames to disk at the 10 Hz default."""
     if not video_dir or not frames:
         return
     ts = datetime.now().strftime("%m%d_%H%M%S")

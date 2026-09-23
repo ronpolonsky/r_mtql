@@ -33,6 +33,8 @@ class DroidEnv(RobotEnv):
         camera_intrinsics = None,
         camera_extrinsics = None,
         record_camera = None,
+        card_color = None,
+        control_gripper = False,
         reset_gripper = True,
         launch_controller = True,
         **kwargs,
@@ -58,6 +60,8 @@ class DroidEnv(RobotEnv):
         self.side_camera_id = side_camera_id
         self.wrist_camera_id = wrist_camera_id
         self.record_camera = record_camera
+        self.card_color = card_color
+        self.control_gripper = bool(control_gripper)
         self.language_instruction = language_instruction
         self._camera_intrinsics = camera_intrinsics  # optional fallback for action viz (dict cam_id -> 3x3 K)
         self._camera_extrinsics = camera_extrinsics  # optional fallback (dict cam_id -> 6D pose)
@@ -108,6 +112,22 @@ class DroidEnv(RobotEnv):
 
         if done:
             print(f"Done! Success: {success}, Time stop: {time_stop}, Manual stop: {manual_stop}, Reached boundary: {reached_boundary}")
+            eval_episode = getattr(self, "eval_episode", None)
+            eval_total = getattr(self, "eval_num_episodes", None)
+            if eval_episode is not None and eval_total is not None:
+                if discarded:
+                    completed = max(int(eval_episode) - 1, 0)
+                    print(
+                        f"DISCARDED ATTEMPT — completed {completed}/{int(eval_total)} "
+                        "(not counted)",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"COMPLETED EVALUATIONS: {int(eval_episode)}/"
+                        f"{int(eval_total)} | success={bool(success)}",
+                        flush=True,
+                    )
             if self.video_dir and not discarded and self._raw_frame_buffer:
                 save_episode_video_to_disk(
                     self._raw_frame_buffer, self.video_dir, self._ep_count
@@ -260,6 +280,15 @@ class DroidEnv(RobotEnv):
             self.close()
         except Exception:
             pass
+
+class EggEnv(DroidEnv):
+    """Egg teleoperation with manual-only success/failure labels."""
+
+    def detect(self, raw_obs):
+        # The operator labels the salt/pepper placement manually. The card
+        # condition is bookkeeping only and is not used as a detector input.
+        return False, False
+
 
 class PickBlocksEnv(DroidEnv):
     """Pick-only: success from robot state (partial gripper close, lifted z, gripper closing)."""
@@ -556,6 +585,7 @@ class Light2Env(DroidEnv):
 
 __all__ = [
     "DroidEnv",
+    "EggEnv",
     "CandyScoopEnv",
     "PickBlocksEnv",
     "Light2Env",
