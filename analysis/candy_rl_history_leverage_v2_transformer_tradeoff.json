@@ -1,0 +1,195 @@
+{
+  "dataset": "/iris/u/ronpo/expo-ft-data/candy_scoop_v2_jitted",
+  "criterion": {
+    "description": "Target-3 and multi-target terminal history coverage, with target-3 weighted most heavily. This is a data-coverage proxy for reward credit assignment, not a model-performance prediction. Ordered-history diagnostics compare a simple reward-separability proxy against bagged and current-only geometry features.",
+    "candidates": [
+      [
+        16,
+        30
+      ],
+      [
+        17,
+        30
+      ],
+      [
+        18,
+        30
+      ],
+      [
+        20,
+        25
+      ],
+      [
+        21,
+        24
+      ],
+      [
+        23,
+        25
+      ]
+    ]
+  },
+  "episodes": {
+    "total": 144,
+    "successes": 90,
+    "failures": 54
+  },
+  "results": [
+    {
+      "history_length": 16,
+      "hist_stride": 30,
+      "span_steps": 480,
+      "span_seconds": 48.0,
+      "sampling_seconds": 3.0,
+      "critic_tokens": 43,
+      "target_terminal_all_events": {
+        "1": 0.9333333333333333,
+        "2": 0.9666666666666667,
+        "3": 0.8
+      },
+      "target_terminal_event_recall": {
+        "1": 0.9333333333333333,
+        "2": 0.9791666666666666,
+        "3": 0.8987341772151899
+      },
+      "multi_target_terminal_all_events": 0.8833333333333333,
+      "terminal_event_recall": 0.9299363057324841,
+      "rl_credit_coverage_proxy": 0.8509872611464968,
+      "reward_balanced_accuracy_ordered": 0.9425925925925926,
+      "reward_balanced_accuracy_bagged": 0.8703703703703703,
+      "reward_balanced_accuracy_current": 0.8481481481481481,
+      "ordered_history_gain_over_bagged": 0.0722222222222223,
+      "ordered_history_gain_over_current": 0.09444444444444455
+    },
+    {
+      "history_length": 17,
+      "hist_stride": 30,
+      "span_steps": 510,
+      "span_seconds": 51.0,
+      "sampling_seconds": 3.0,
+      "critic_tokens": 44,
+      "target_terminal_all_events": {
+        "1": 0.9333333333333333,
+        "2": 0.9666666666666667,
+        "3": 0.8333333333333334
+      },
+      "target_terminal_event_recall": {
+        "1": 0.9333333333333333,
+        "2": 0.9791666666666666,
+        "3": 0.9113924050632911
+      },
+      "multi_target_terminal_all_events": 0.9,
+      "terminal_event_recall": 0.9363057324840764,
+      "rl_credit_coverage_proxy": 0.873927813163482,
+      "reward_balanced_accuracy_ordered": 0.9333333333333333,
+      "reward_balanced_accuracy_bagged": 0.8703703703703703,
+      "reward_balanced_accuracy_current": 0.8481481481481481,
+      "ordered_history_gain_over_bagged": 0.062962962962963,
+      "ordered_history_gain_over_current": 0.08518518518518525
+    },
+    {
+      "history_length": 18,
+      "hist_stride": 30,
+      "span_steps": 540,
+      "span_seconds": 54.0,
+      "sampling_seconds": 3.0,
+      "critic_tokens": 45,
+      "target_terminal_all_events": {
+        "1": 0.9333333333333333,
+        "2": 0.9666666666666667,
+        "3": 0.8333333333333334
+      },
+      "target_terminal_event_recall": {
+        "1": 0.9333333333333333,
+        "2": 0.9791666666666666,
+        "3": 0.9113924050632911
+      },
+      "multi_target_terminal_all_events": 0.9,
+      "terminal_event_recall": 0.9363057324840764,
+      "rl_credit_coverage_proxy": 0.873927813163482,
+      "reward_balanced_accuracy_ordered": 0.924074074074074,
+      "reward_balanced_accuracy_bagged": 0.8703703703703703,
+      "reward_balanced_accuracy_current": 0.8481481481481481,
+      "ordered_history_gain_over_bagged": 0.0537037037037037,
+      "ordered_history_gain_over_current": 0.07592592592592595
+    },
+    {
+      "history_length": 20,
+      "hist_stride": 25,
+      "span_steps": 500,
+      "span_seconds": 50.0,
+      "sampling_seconds": 2.5,
+      "critic_tokens": 47,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 0.9333333333333333,
+        "3": 0.9
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 0.9583333333333334,
+        "3": 0.9620253164556962
+      },
+      "multi_target_terminal_all_events": 0.9166666666666666,
+      "terminal_event_recall": 0.9681528662420382,
+      "rl_credit_coverage_proxy": 0.9186305732484077,
+      "reward_balanced_accuracy_ordered": 0.924074074074074,
+      "reward_balanced_accuracy_bagged": 0.924074074074074,
+      "reward_balanced_accuracy_current": 0.8481481481481481,
+      "ordered_history_gain_over_bagged": 0.0,
+      "ordered_history_gain_over_current": 0.07592592592592595
+    },
+    {
+      "history_length": 21,
+      "hist_stride": 24,
+      "span_steps": 504,
+      "span_seconds": 50.4,
+      "sampling_seconds": 2.4,
+      "critic_tokens": 48,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 0.9666666666666667,
+        "3": 0.8
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 0.9791666666666666,
+        "3": 0.9240506329113924
+      },
+      "multi_target_terminal_all_events": 0.8833333333333333,
+      "terminal_event_recall": 0.9554140127388535,
+      "rl_credit_coverage_proxy": 0.8560828025477707,
+      "reward_balanced_accuracy_ordered": 0.9296296296296296,
+      "reward_balanced_accuracy_bagged": 0.9092592592592592,
+      "reward_balanced_accuracy_current": 0.8481481481481481,
+      "ordered_history_gain_over_bagged": 0.020370370370370372,
+      "ordered_history_gain_over_current": 0.08148148148148149
+    },
+    {
+      "history_length": 23,
+      "hist_stride": 25,
+      "span_steps": 575,
+      "span_seconds": 57.5,
+      "sampling_seconds": 2.5,
+      "critic_tokens": 50,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 0.9333333333333333,
+        "3": 0.9
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 0.9583333333333334,
+        "3": 0.9620253164556962
+      },
+      "multi_target_terminal_all_events": 0.9166666666666666,
+      "terminal_event_recall": 0.9681528662420382,
+      "rl_credit_coverage_proxy": 0.9186305732484077,
+      "reward_balanced_accuracy_ordered": 0.9296296296296296,
+      "reward_balanced_accuracy_bagged": 0.924074074074074,
+      "reward_balanced_accuracy_current": 0.8481481481481481,
+      "ordered_history_gain_over_bagged": 0.005555555555555536,
+      "ordered_history_gain_over_current": 0.08148148148148149
+    }
+  ]
+}

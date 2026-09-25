@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>new_mtql — Reinforcement-Learning Methodology Audit</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #5f6b76;
+      --paper: #f5f7fa;
+      --panel: #ffffff;
+      --line: #dce2e8;
+      --navy: #19324d;
+      --blue: #2266aa;
+      --critical: #a52a2a;
+      --critical-bg: #fff4f2;
+      --likely: #875b00;
+      --likely-bg: #fff9e8;
+      --good: #176b4d;
+      --good-bg: #eefaf5;
+      --info-bg: #eff6ff;
+      --code-bg: #f3f5f7;
+      --shadow: 0 8px 30px rgba(18, 35, 52, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.62 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+    code {
+      padding: 0.12rem 0.3rem;
+      border-radius: 4px;
+      background: var(--code-bg);
+    }
+    pre {
+      overflow-x: auto;
+      margin: 1rem 0;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--code-bg);
+      line-height: 1.55;
+    }
+    pre code { padding: 0; background: none; }
+
+    header {
+      color: white;
+      background: linear-gradient(125deg, #10273e, #214d70 65%, #28758a);
+      padding: 4rem max(1.25rem, calc((100vw - 1120px) / 2));
+    }
+    header .eyebrow {
+      margin: 0 0 0.6rem;
+      color: #bfe6f1;
+      font-size: 0.8rem;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    header h1 {
+      max-width: 880px;
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+    }
+    header .lede {
+      max-width: 800px;
+      margin: 1.15rem 0 0;
+      color: #e8f1f6;
+      font-size: 1.08rem;
+    }
+    .metadata {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1.5rem;
+    }
+    .metadata span {
+      padding: 0.32rem 0.64rem;
+      border: 1px solid rgba(255,255,255,0.23);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      color: #eef8fb;
+      font-size: 0.82rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 2rem;
+      width: min(1120px, calc(100% - 2.5rem));
+      margin: 2rem auto 5rem;
+    }
+    nav {
+      position: sticky;
+      top: 1.25rem;
+      align-self: start;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    nav strong {
+      display: block;
+      margin: 0 0 0.5rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+    nav a {
+      display: block;
+      padding: 0.36rem 0.45rem;
+      border-radius: 5px;
+      color: var(--navy);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    nav a:hover { background: var(--info-bg); color: var(--blue); }
+    main { min-width: 0; }
+    section { scroll-margin-top: 1.5rem; }
+    h2 {
+      margin: 3.2rem 0 1rem;
+      color: var(--navy);
+      font-size: 1.7rem;
+      line-height: 1.25;
+      letter-spacing: -0.015em;
+    }
+    main > section:first-child h2 { margin-top: 0; }
+    h3 { margin: 1.7rem 0 0.7rem; color: var(--navy); line-height: 1.3; }
+    h4 { margin: 1.05rem 0 0.25rem; font-size: 0.86rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.055em; }
+    p { margin: 0.5rem 0 0.9rem; }
+    ul, ol { padding-left: 1.35rem; }
+    li + li { margin-top: 0.42rem; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.9rem;
+      margin: 1.15rem 0;
+    }
+    .stat {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .stat .number { display: block; color: var(--navy); font-size: 1.65rem; font-weight: 800; }
+    .stat .label { color: var(--muted); font-size: 0.86rem; }
+
+    .callout {
+      margin: 1.15rem 0;
+      padding: 0.95rem 1.1rem;
+      border-left: 4px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      background: var(--info-bg);
+    }
+    .callout.good { border-color: var(--good); background: var(--good-bg); }
+    .callout.warn { border-color: var(--likely); background: var(--likely-bg); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.65rem;
+      margin: 1rem 0 1.3rem;
+      counter-reset: flow;
+    }
+    .flow div {
+      position: relative;
+      min-height: 88px;
+      padding: 0.8rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      counter-increment: flow;
+    }
+    .flow div::before {
+      content: counter(flow);
+      display: inline-grid;
+      place-items: center;
+      width: 1.35rem;
+      height: 1.35rem;
+      margin-right: 0.35rem;
+      border-radius: 50%;
+      color: white;
+      background: var(--blue);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+    .flow b { font-size: 0.9rem; }
+    .flow small { display: block; margin-top: 0.35rem; color: var(--muted); line-height: 1.4; }
+
+    .finding {
+      margin: 1.35rem 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .finding-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 1rem 1.15rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .finding.critical .finding-head { background: var(--critical-bg); }
+    .finding.likely .finding-head { background: var(--likely-bg); }
+    .badge {
+      flex: 0 0 auto;
+      margin-top: 0.12rem;
+      padding: 0.2rem 0.46rem;
+      border-radius: 4px;
+      color: white;
+      background: var(--critical);
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .likely .badge { background: var(--likely); }
+    .finding-head h3 { margin: 0; font-size: 1.12rem; }
+    .finding-body { padding: 0.4rem 1.15rem 1.1rem; }
+    .path { color: var(--muted); font-size: 0.88rem; }
+    .path a { text-decoration: none; }
+    .finding dl {
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      gap: 0.48rem 0.8rem;
+      margin: 1rem 0 0;
+    }
+    .finding dt { color: var(--muted); font-weight: 700; }
+    .finding dd { margin: 0; }
+
+    .equation {
+      padding: 1rem;
+      border: 1px solid #cbd7e3;
+      border-radius: 8px;
+      background: #f8fbff;
+      text-align: center;
+      font: 1rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .table-wrap { overflow-x: auto; margin: 1rem 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      font-size: 0.9rem;
+    }
+    th, td { padding: 0.72rem; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--navy); background: #edf2f6; }
+    td:first-child { font-weight: 650; }
+    .verdict-good { color: var(--good); font-weight: 750; }
+    .verdict-warn { color: var(--likely); font-weight: 750; }
+    .verdict-bad { color: var(--critical); font-weight: 750; }
+    footer {
+      padding: 2rem 1rem 3rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 860px) {
+      .layout { display: block; }
+      nav { position: static; margin-bottom: 1.5rem; columns: 2; }
+      nav strong { column-span: all; }
+      .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      header { padding-top: 2.7rem; padding-bottom: 2.7rem; }
+      .layout { width: min(100% - 1.3rem, 1120px); }
+      nav { columns: 1; }
+      .flow { grid-template-columns: 1fr; }
+      .finding dl { grid-template-columns: 1fr; gap: 0.1rem; }
+      .finding dd + dt { margin-top: 0.55rem; }
+    }
+    @media print {
+      body { background: white; font-size: 10.5pt; }
+      header { padding: 1.2cm; background: var(--navy) !important; print-color-adjust: exact; }
+      .layout { display: block; width: auto; margin: 0; }
+      nav { display: none; }
+      main { padding: 0 0.6cm; }
+      .finding, .stat { box-shadow: none; break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+      h2 { break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Independent code-path review</p>
+    <h1>Reinforcement-Learning Methodology Audit</h1>
+    <p class="lede">
+      A focused review of reward semantics, chunked return construction, offline-to-online data use,
+      and the complete MTQL actor/critic objective, including comparison against the reference TQL implementation.
+    </p>
+    <div class="metadata">
+      <span>Project: new_mtql</span>
+      <span>Revision: 389cde0498df</span>
+      <span>Reviewed: July 31, 2026</span>
+      <span>Scope: methodology, not style</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav aria-label="Report sections">
+      <strong>Contents</strong>
+      <a href="#executive-summary">Executive summary</a>
+      <a href="#execution-path">Execution path</a>
+      <a href="#reward-analysis">Reward analysis</a>
+      <a href="#critical">Critical issues</a>
+      <a href="#likely">Likely issues</a>
+      <a href="#off-policy">Offline → online</a>
+      <a href="#loss">Loss and gradients</a>
+      <a href="#tql">Differences from TQL</a>
+      <a href="#questions">Open questions</a>
+      <a href="#fixes">Recommended fixes</a>
+      <a href="#verification">Verification</a>
+    </nav>
+
+    <main>
+      <section id="executive-summary">
+        <h2>Executive summary</h2>
+        <p>
+          The central MTQL loss is recognizably an off-policy actor–critic objective and does not, by itself,
+          require behavior-policy log-probabilities or importance sampling. The main mathematical failures are
+          in the data presented to that loss: the online collector shares a mutable environment with evaluation,
+          offline and online rewards use different definitions, lazy online chunk samples omit most of the
+          chunk reward, and House time-limit boundaries are not represented as episode boundaries. In active
+          launch configurations, the attention-entropy dual can also be asked to satisfy an impossible target.
+        </p>
+
+        <div class="summary-grid">
+          <div class="stat"><span class="number">5</span><span class="label">critical objective or transition failures</span></div>
+          <div class="stat"><span class="number">6</span><span class="label">likely or intent-dependent concerns</span></div>
+          <div class="stat"><span class="number">0</span><span class="label">evidence of reward duplication inside one chunk return</span></div>
+        </div>
+
+        <div class="callout good">
+          <strong>Important negative finding:</strong> the batching code does not copy or append one terminal reward
+          multiple times inside a single return. Reuse of a terminal reward by several overlapping training windows
+          is ordinary temporal credit assignment. The genuine reward problem is that collection stages optimize
+          different reward functions.
+        </div>
+
+        <div class="callout warn">
+          <strong>Applicability:</strong> some findings are configuration-dependent. The lazy online chunk-reward bug
+          applies only to <code>LazyEpisodeReplayBuffer</code>; checked-in online launch scripts currently select
+          <code>--nolazy_dataset</code>. The shared environment and reward relabeling failures apply to the active
+          single-step online path regardless of lazy storage.
+        </div>
+      </section>
+
+      <section id="execution-path">
+        <h2>Mapped execution path</h2>
+        <div class="flow" aria-label="Training execution path">
+          <div><b>Environment</b><small>House or ManiSkill cabinet produces observation, numeric reward, termination, truncation, and info.</small></div>
+          <div><b>Offline collection</b><small>Expert/scripted policies write environment rewards, actions, masks, and terminal flags.</small></div>
+          <div><b>Dataset load</b><small>History and lazy replay classes infer episode starts from terminal indices.</small></div>
+          <div><b>Chunk sample</b><small>Actions and H-step rewards are constructed, with next state at t + H.</small></div>
+          <div><b>Online collection</b><small>Current actor executes sub-actions; numeric environment reward is replaced with ±1.</small></div>
+          <div><b>Critic target</b><small>Chunk reward plus γᴴ bootstrap from target critic and sampled next action.</small></div>
+          <div><b>Actor losses</b><small>Flow matching + one-step distillation − critic value.</small></div>
+          <div><b>Joint update</b><small>One summed loss updates disjoint module parameter groups, then Polyak target update runs.</small></div>
+        </div>
+
+        <p>The intended chunked Bellman target is:</p>
+        <div class="equation">
+          y<sub>t</sub> = Σ<sub>k=0</sub><sup>H−1</sup> γ<sup>k</sup> r<sub>t+k</sub>
+          + γ<sup>H</sup> m<sub>t:t+H</sub> Q̄(s<sub>t+H</sub>, π(s<sub>t+H</sub>))
+        </div>
+        <p>
+          This is implemented correctly for ordinary dataset chunking and lazy <em>offline</em> chunking. It is not
+          implemented correctly for lazy <em>online</em> chunking.
+        </p>
+      </section>
+
+      <section id="reward-analysis">
+        <h2>Reward labeling and return computation</h2>
+
+        <h3>Is the terminal reward copied across the last steps?</h3>
+        <p>
+          No, not inside a sampled return. Generic chunking clamps array indices at the episode end but multiplies
+          rewards by a validity mask before summation
+          (<a href="utils/datasets.py"><code>utils/datasets.py:116–136</code></a>). Lazy offline sampling excludes
+          incomplete chunk starts and also applies an explicit validity mask
+          (<a href="utils/datasets.py"><code>utils/datasets.py:659–669, 771–789</code></a>). Therefore, a clamped
+          terminal index does not cause its reward to be added H times.
+        </p>
+        <p>
+          A terminal reward can appear in the targets for multiple overlapping start states. That is expected:
+          each target is a different Bellman equation. It becomes unintended shaping only if the environment or
+          preprocessing emits a repeated success reward as distinct per-step rewards.
+        </p>
+
+        <h3>Cabinet success rewards are repeated by the environment, not by batching</h3>
+        <p>
+          The cabinet task increments <code>_success_step_count</code> on every raw-success step and sets reward to
+          <code>+1</code> whenever <code>raw_success</code> is true
+          (<a href="cabinet-memory-sim/ManiSkill/mani_skill/envs/tasks/panda/open_cabinet_panda.py"><code>open_cabinet_panda.py:720–755</code></a>).
+          This is an occupancy/stability reward over distinct physical transitions. It is a valid MDP reward if the
+          intended task is “keep the cabinet open and static,” but it is non-potential reward shaping and is not
+          equivalent to a single terminal success bonus. It changes both the optimum and temporal credit assignment.
+        </p>
+
+        <h3>Reward definitions currently optimized</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Source</th><th>Stored reward</th><th>Boundary / success semantics</th><th>Consequence</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>House offline</td>
+                <td>Raw <code>env.step</code> reward</td>
+                <td>Delivery increment, remaining-object cost, dense reward, or persistent wrong-pickup penalty depending on flags</td>
+                <td>Matches the configured House environment, subject to timeout-boundary bug.</td>
+              </tr>
+              <tr>
+                <td>Cabinet offline</td>
+                <td>Raw wrapper/environment reward</td>
+                <td><code>raw_success</code> gives +1; public <code>success</code> is delayed until the count reaches 50</td>
+                <td>Optimizes per-step stable-open occupancy.</td>
+              </tr>
+              <tr>
+                <td>All online</td>
+                <td><code>+1</code> after <code>info.success</code>, otherwise <code>−1</code></td>
+                <td>A local success latch remains true for the rest of that executed action chunk</td>
+                <td>Different objective from both offline datasets; cabinet raw successes before delayed success become −1.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="critical">
+        <h2>Critical issues</h2>
+
+        <article class="finding critical">
+          <div class="finding-head"><span class="badge">Critical 1</span><h3>Evaluation mutates the environment used by the online collector</h3></div>
+          <div class="finding-body">
+            <p class="path">
+              <a href="m_main.py"><code>m_main.py:180–188 → 305–345 → 411–480</code></a>
+            </p>
+            <dl>
+              <dt>Code path</dt>
+              <dd><code>online_env = eval_env</code>; the collector caches <code>observation</code>, history, and episode state. Evaluation later resets and steps that same object, after which collection resumes from the stale cache.</dd>
+              <dt>Failed assumption</dt>
+              <dd>A replay tuple must be a transition from one Markov trajectory: <code>(s<sub>t</sub>, a<sub>t</sub>, r<sub>t</sub>, s<sub>t+1</sub>)</code> must all refer to the same simulator state transition.</dd>
+              <dt>Practical effect</dt>
+              <dd>The stored observation/history may describe the pre-evaluation simulator while the action is executed in a post-evaluation state. Bellman targets then regress on impossible transitions. Evaluation at the initial training step can corrupt the first online transition after warmup.</dd>
+              <dt>Correction</dt>
+              <dd>Create a dedicated collection environment with independent state and RNG. Never pass it to evaluation or video routines. If sharing cannot be avoided, reset the collector and rebuild all cached history immediately after every evaluation—but a separate instance is the safe minimal fix.</dd>
+            </dl>
+          </div>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-head"><span class="badge">Critical 2</span><h3>Offline and online replay optimize incompatible reward functions</h3></div>
+          <div class="finding-body">
+            <p class="path">
+              <a href="m_main.py"><code>m_main.py:320–331</code></a> ·
+              <a href="envs/house_env.py"><code>envs/house_env.py:611–623, 1311–1324</code></a> ·
+              <a href="envs/search_cabinet_env.py"><code>envs/search_cabinet_env.py:180–206</code></a> ·
+              <a href="cabinet-memory-sim/ManiSkill/mani_skill/envs/tasks/panda/open_cabinet_panda.py"><code>open_cabinet_panda.py:720–755</code></a>
+            </p>
+            <dl>
+              <dt>Code path</dt>
+              <dd>Offline collectors preserve the numeric environment reward. Online collection discards it and stores <code>+1 if success else −1</code>.</dd>
+              <dt>Failed assumption</dt>
+              <dd>Bellman regression over a replay mixture assumes every sample estimates the same reward function <code>r(s,a,s′)</code>, unless task/reward identity is part of the conditioning state.</dd>
+              <dt>Practical effect</dt>
+              <dd>The critic is asked to fit contradictory returns for the same kinds of state/action transitions. In cabinet, as many as 49 raw-success steps can be labeled +1 offline but −1 online before delayed success activates. In House, online learning removes delivery/count/dense/wrong-pickup semantics.</dd>
+              <dt>Correction</dt>
+              <dd>Define one training reward relabeler and apply it to both offline files and online transitions. Keep <code>raw_reward</code>, <code>training_reward</code>, and a reward-version identifier so datasets can be migrated and verified.</dd>
+            </dl>
+          </div>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-head"><span class="badge">Critical 3</span><h3>Lazy online chunks use only r<sub>t</sub> with a γᴴ bootstrap</h3></div>
+          <div class="finding-body">
+            <p class="path">
+              <a href="utils/datasets.py"><code>utils/datasets.py:924–935</code></a> →
+              <a href="agents/mtql_transformer.py"><code>agents/mtql_transformer.py:30–64</code></a>;
+              correct offline counterpart at <a href="utils/datasets.py"><code>utils/datasets.py:776–789</code></a>
+            </p>
+            <dl>
+              <dt>Code path</dt>
+              <dd>Lazy online sampling advances actions and next state by H, but sets <code>rew_out = rewards[idxs]</code>. The critic always bootstraps with <code>discount ** action_chunk_size</code>.</dd>
+              <dt>Failed equation</dt>
+              <dd>The implementation uses <code>r<sub>t</sub> + γᴴQ(s<sub>t+H</sub>,·)</code> rather than <code>Σγᵏr<sub>t+k</sub> + γᴴQ(s<sub>t+H</sub>,·)</code>.</dd>
+              <dt>Practical effect</dt>
+              <dd>Intermediate rewards, including a terminal reward later in the executed chunk, disappear from the target. Learned value scale and credit assignment differ between offline and online samples.</dd>
+              <dt>Correction</dt>
+              <dd>Use the same tested chunk constructor for generic, lazy-offline, and lazy-online replay. Sum all valid discounted rewards and derive next observation and bootstrap mask from the same boundary.</dd>
+            </dl>
+            <p><strong>Scope:</strong> this defect is conditional on lazy online replay. Current checked-in online shell commands use <code>--nolazy_dataset</code>, so it is dormant there.</p>
+          </div>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-head"><span class="badge">Critical 4</span><h3>House time-limit resets are not recorded as episode boundaries</h3></div>
+          <div class="finding-body">
+            <p class="path">
+              <a href="envs/house_env.py"><code>envs/house_env.py:1311–1324</code></a> →
+              <a href="utils/datasets.py"><code>utils/datasets.py:64–66, 443–491</code></a>
+            </p>
+            <dl>
+              <dt>Code path</dt>
+              <dd>Collection stops on <code>terminated or truncated</code>, but writes <code>terminals=1</code> and <code>masks=0</code> only for <code>terminated</code>. Replay reconstructs episode starts solely from <code>terminals</code>.</dd>
+              <dt>Failed assumption</dt>
+              <dd>History construction and chunk indexing require every environment reset boundary, even when time-limit transitions are allowed to bootstrap.</dd>
+              <dt>Practical effect</dt>
+              <dd>Timeout episodes are concatenated with the next reset episode. Histories and action chunks cross unrelated states. If no successful termination occurs, an entire dataset may appear to be one trajectory.</dd>
+              <dt>Correction</dt>
+              <dd>Store separate <code>episode_end = terminated or truncated</code> and <code>bootstrap_mask</code> fields. Use <code>episode_end</code> for segmentation/clamping and the chosen time-limit convention for bootstrapping. Rebuild affected House datasets.</dd>
+            </dl>
+          </div>
+        </article>
+
+        <article class="finding critical">
+          <div class="finding-head"><span class="badge">Critical 5</span><h3>Configured attention-entropy targets can be mathematically unattainable</h3></div>
+          <div class="finding-body">
+            <p class="path">
+              <a href="agents/mtql_transformer.py"><code>agents/mtql_transformer.py:66–93</code></a> ·
+              <a href="utils/networks.py"><code>utils/networks.py:67–79</code></a> ·
+              <a href="main_mtql_search_two_cams_online_one_step_image_chunk.sh"><code>main_mtql_search_two_cams_online_one_step_image_chunk.sh:32</code></a> ·
+              <a href="main_vit_mtql_search_two_cams_online_one_step_image_chunk.sh"><code>main_vit_mtql_search_two_cams_online_one_step_image_chunk.sh:30</code></a>
+            </p>
+            <dl>
+              <dt>Code path</dt>
+              <dd>Active scripts request entropy targets <code>((4.5,4.5),(4.0,4.0))</code>. The loss uses a positive exponential temperature; entropy regularization sees a clipped temperature, but the temperature dual loss uses the unclipped value.</dd>
+              <dt>Failed constraint</dt>
+              <dd>For attention over K keys, <code>H(p) ≤ log K</code>. The reviewed ResNet tokenization has K=39 and maximum ≈3.664; pooled memory-ViT has K=27 and maximum ≈3.296. Targets 4.0 and 4.5 are impossible.</dd>
+              <dt>Practical effect</dt>
+              <dd><code>temperature × (H − H*)</code> remains negative, so minimizing it pushes temperature toward infinity and the reported objective toward −∞. Clipping only the entropy-loss path does not bound the dual-loss path.</dd>
+              <dt>Correction</dt>
+              <dd>Validate each target after final tokenization against <code>log K</code>; preferably target normalized entropy in [0,1]. Parameterize the multiplier with a consistently enforced upper bound or use the same clipped value in both primal and dual terms.</dd>
+            </dl>
+          </div>
+        </article>
+      </section>
+
+      <section id="likely">
+        <h2>Likely or intent-dependent issues</h2>
+
+        <article class="finding likely">
+          <div class="finding-head"><span class="badge">Likely 1</span><h3>Cabinet “50 stable steps” is cumulative, not consecutive</h3></div>
+          <div class="finding-body">
+            <p class="path"><a href="cabinet-memory-sim/ManiSkill/mani_skill/envs/tasks/panda/open_cabinet_panda.py"><code>open_cabinet_panda.py:720–729</code></a></p>
+            <p><code>_success_step_count += raw_success.int()</code> never decrements or resets when raw success becomes false. If the intended condition is 50 consecutive stable-open steps, the implementation accepts 50 scattered steps. Reset the count on <code>~raw_success</code>; otherwise rename/document it as cumulative dwell time.</p>
+          </div>
+        </article>
+
+        <article class="finding likely">
+          <div class="finding-head"><span class="badge">Likely 2</span><h3>House wrong-pickup behavior contradicts its stated task definition</h3></div>
+          <div class="finding-body">
+            <p class="path"><a href="envs/house_env.py"><code>envs/house_env.py:74–76, 602–623</code></a></p>
+            <p>The comment specifies immediate termination with reward −3. The environment instead latches <code>wrong_pickup</code>, returns −5 on every subsequent step, and does not terminate. This is not a cosmetic discrepancy: it changes the return by a horizon-dependent amount and encourages ending the episode quickly after an error. Choose one task definition and make termination, reward, collection, and documentation agree.</p>
+          </div>
+        </article>
+
+        <article class="finding likely">
+          <div class="finding-head"><span class="badge">Likely 3</span><h3>Offline/online replay ratios differ by storage backend</h3></div>
+          <div class="finding-body">
+            <p class="path"><a href="utils/datasets.py"><code>utils/datasets.py:989–1006</code></a> and inherited non-lazy sampling</p>
+            <p>Lazy replay forces approximately one-third online samples once valid data exist. Non-lazy replay samples uniformly from the combined buffer, so a small online set can contribute almost nothing. Both can be defensible, but they define different training algorithms and critic data distributions. Add an explicit replay-mixture hyperparameter shared by both implementations.</p>
+          </div>
+        </article>
+
+        <article class="finding likely">
+          <div class="finding-head"><span class="badge">Likely 4</span><h3>Cabinet resets reuse one seed</h3></div>
+          <div class="finding-body">
+            <p class="path"><a href="envs/search_cabinet_env.py"><code>envs/search_cabinet_env.py:174–178</code></a></p>
+            <p><code>reset()</code> reuses <code>self._seed</code>, whose factory default is zero. Unless lower-level randomness advances independently, online episodes can repeatedly start from the same layout. The declared <code>online_reset_seed</code> path is not wired through. Use an episode seed sequence and log seeds for reproducibility.</p>
+          </div>
+        </article>
+
+        <article class="finding likely">
+          <div class="finding-head"><span class="badge">Likely 5</span><h3>Chunk length changes actor-loss scale without corresponding normalization</h3></div>
+          <div class="finding-body">
+            <p class="path"><a href="agents/mtql_transformer.py"><code>agents/mtql_transformer.py:138–195</code></a></p>
+            <p>Flow and distillation losses are means over action elements, while Q represents an H-step macro return whose magnitude generally grows with H. With <code>normalize_q_loss=False</code>, changing chunk size alters the relative strength of <code>−Q</code> versus imitation even when <code>alpha</code> is unchanged. Retune by horizon/reward scale or normalize Q with a numerically safe denominator such as <code>1 / (mean(abs(Q)) + ε)</code>.</p>
+          </div>
+        </article>
+
+        <article class="finding likely">
+          <div class="finding-head"><span class="badge">Likely 6</span><h3>Target critic update is one optimizer step behind</h3></div>
+          <div class="finding-body">
+            <p class="path"><a href="agents/mtql_transformer.py"><code>agents/mtql_transformer.py:229–244</code></a></p>
+            <p><code>target_update(new_network, ...)</code> writes into the new state but reads online critic parameters from <code>self.network.params</code>, not <code>new_network.params</code>. The target is therefore Polyak-updated from the pre-gradient critic. This is inherited from the reference snapshot and is usually a minor one-step lag, not a validity failure. Read from <code>network.params</code> if the intended order is optimizer step then target update.</p>
+          </div>
+        </article>
+      </section>
+
+      <section id="off-policy">
+        <h2>Offline-to-online policy and probability audit</h2>
+        <p>
+          Offline cabinet trajectories come from a scripted/noisy expert; House data come from
+          <code>ObsExpertAgent</code>; online transitions come from the current actor at collection time. Actions are
+          stored, but behavior log-probabilities are not.
+        </p>
+        <div class="callout good">
+          <strong>No importance sampling is required for the implemented losses.</strong> The critic uses off-policy
+          Bellman regression, the behavior-cloning term is supervised flow matching on replay actions, distillation
+          uses a frozen teacher target, and the Q term differentiates through the current reparameterized actor. None
+          is a likelihood-ratio policy-gradient estimator such as PPO. Stale replay actions and absent behavior
+          log-probabilities are therefore not an on-policy violation.
+        </div>
+        <p>
+          This conclusion would change if the code added a REINFORCE/PPO-style term, interpreted stored action
+          likelihoods as current-policy likelihoods, or used a multi-step off-policy return containing sampled
+          behavior actions without an appropriate correction. The reviewed objective does none of those things.
+          The actual offline-to-online violations are transition corruption, reward mismatch, inconsistent chunk
+          targets, and broken episode boundaries.
+        </p>
+        <p>
+          Also, passing <code>temperature=0</code> does not make action sampling deterministic in the reviewed sampling
+          methods: Gaussian noise is still drawn and the argument does not scale it. This is misleading API behavior,
+          though not an RL objective error.
+        </p>
+      </section>
+
+      <section id="loss">
+        <h2>Complete loss and gradient-path audit</h2>
+        <p>The active transformer agent forms one joint scalar:</p>
+        <div class="equation">
+          L = L<sub>Q</sub> + L<sub>attention</sub> + L<sub>temperature</sub>
+          + L<sub>flow</sub> + αL<sub>distill</sub> − E[Q(s, π<sub>1-step</sub>(s))]
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Term</th><th>Coefficient / reduction</th><th>Gradient path</th><th>Assessment</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Critic MSE</td>
+                <td>Unit coefficient; mean over batch and critic ensemble</td>
+                <td>Current critic only. Target actor/critic calls use stored parameters, not <code>grad_params</code>.</td>
+                <td class="verdict-good">Detached target is coherent; correctness depends on replay target construction.</td>
+              </tr>
+              <tr>
+                <td>Attention entropy</td>
+                <td><code>−stopgrad(clipped_temperature) × entropy</code>, global mean</td>
+                <td>Critic attention weights, not temperature</td>
+                <td class="verdict-warn">Sign is consistent with maximizing entropy, but impossible targets destabilize its dual.</td>
+              </tr>
+              <tr>
+                <td>Temperature dual</td>
+                <td><code>temperature × stopgrad(entropy − target)</code>, global mean</td>
+                <td>Positive temperature parameter only</td>
+                <td class="verdict-bad">Unbounded when target exceeds maximum entropy; inconsistent clipped/unclipped usage.</td>
+              </tr>
+              <tr>
+                <td>Flow matching</td>
+                <td>Unit coefficient; MSE mean over batch, horizon, action dimensions</td>
+                <td>Multi-step behavior-cloning flow actor</td>
+                <td class="verdict-good">Direction is reversed relative to TQL but sampling integration is reversed consistently.</td>
+              </tr>
+              <tr>
+                <td>Distillation</td>
+                <td><code>alpha</code>; MSE mean over all action elements</td>
+                <td>One-step actor; target flow output is detached because it is evaluated with stored parameters</td>
+                <td class="verdict-good">Coherent teacher/student path. Scale is horizon-sensitive.</td>
+              </tr>
+              <tr>
+                <td>Actor Q</td>
+                <td>Unit coefficient; negative mean across ensemble and batch</td>
+                <td>Gradient flows through one-step actor actions while critic parameters are frozen</td>
+                <td class="verdict-good">Correct deterministic/reparameterized policy gradient structure.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Parameter grouping makes the summed loss workable: actor-only terms update actor modules, critic terms update
+          critic modules, and the temperature term updates its parameter module. The target network and teacher outputs
+          are effectively detached because their calls use stored parameters rather than the differentiable
+          <code>grad_params</code>. The critic call in the actor Q term similarly freezes critic weights while retaining
+          the derivative with respect to its action input. No erroneous actor-through-target or critic-through-teacher
+          gradient was found.
+        </p>
+      </section>
+
+      <section id="tql">
+        <h2>Differences from reference TQL</h2>
+        <p>
+          The repository’s <a href="agents/tql.py"><code>agents/tql.py</code></a> is byte-identical to the locally
+          recorded upstream snapshot from TQL commit <code>8f8e3b33978c54deae72faeaef55e271d3aefea3</code>.
+          Reference repository: <a href="https://github.com/pd-perry/TQL/tree/main">pd-perry/TQL</a>.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Area</th><th>Reference TQL</th><th>MTQL transformer</th><th>Verdict</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Bellman horizon</td>
+                <td>One-step reward and γ bootstrap</td>
+                <td>H-step chunk reward and γᴴ bootstrap</td>
+                <td class="verdict-good">Intentional and mathematically sound when the chunk builder supplies the full discounted return.</td>
+              </tr>
+              <tr>
+                <td>Flow direction</td>
+                <td>Noise → data, integrated forward</td>
+                <td>Data → noise during training, then noise → data with negative time step</td>
+                <td class="verdict-good">Equivalent orientation change; target velocity and integration direction agree.</td>
+              </tr>
+              <tr>
+                <td>Flow-time sampling</td>
+                <td>Uniform time</td>
+                <td>Beta(1.5, 1), shifted away from exact endpoints</td>
+                <td class="verdict-warn">Intentional reweighting, not equivalent to TQL. It emphasizes later interpolation times and should be documented as an ablation.</td>
+              </tr>
+              <tr>
+                <td>Observation/action model</td>
+                <td>Single-step MLP-style inputs</td>
+                <td>History, visual encoders, transformer critic, and action chunks</td>
+                <td class="verdict-good">Intentional architectural extension.</td>
+              </tr>
+              <tr>
+                <td>Actor objective</td>
+                <td>Flow BC + α distillation − ensemble-mean Q</td>
+                <td>Same structure</td>
+                <td class="verdict-good">Structurally equivalent; return/horizon scaling changes relative magnitudes.</td>
+              </tr>
+              <tr>
+                <td>Target Q aggregation</td>
+                <td>Configurable ensemble aggregation</td>
+                <td>Configurable <code>min</code> or mean; actor always uses mean</td>
+                <td class="verdict-good">Coherent and consistent with the reference pattern.</td>
+              </tr>
+              <tr>
+                <td>Attention entropy</td>
+                <td>Same primal/dual algebra</td>
+                <td>Same algebra over a different token count</td>
+                <td class="verdict-bad">Formula is inherited, but chosen targets are invalid for current tokenizations.</td>
+              </tr>
+              <tr>
+                <td>Target update order</td>
+                <td>Reads pre-update critic parameters</td>
+                <td>Same</td>
+                <td class="verdict-warn">Equivalent to the snapshot but retains a likely accidental one-step lag.</td>
+              </tr>
+              <tr>
+                <td>Actor learning rate</td>
+                <td>Reference defaults</td>
+                <td>Different configured rate</td>
+                <td class="verdict-warn">A tuning deviation, not mathematical equivalence; report it with experiments.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="questions">
+        <h2>Open questions</h2>
+        <ol>
+          <li><strong>Canonical reward:</strong> is the intended task reward raw environment reward, one terminal success bonus, 50-step stable-open occupancy, House delivery increments, a remaining-object cost, or universal ±1 survival/success?</li>
+          <li><strong>Timeout semantics:</strong> should value targets bootstrap at a time limit? Regardless of that choice, timeouts must remain replay/history boundaries.</li>
+          <li><strong>Cabinet stability:</strong> must the 50 successful steps be consecutive or merely cumulative?</li>
+          <li><strong>Wrong pickup:</strong> should it terminate immediately for −3 or latch a persistent −5 reward?</li>
+          <li><strong>Missing collector:</strong> <a href="collect_cabinet_dataset.py"><code>collect_cabinet_dataset.py:27–33</code></a> imports <code>cabinet_dataset_collector</code>, which is absent from the repository. The final implementation of <code>DataCollector.end_episode</code> and <code>build_episode_dataset</code> therefore could not be audited.</li>
+          <li><strong>Stored data:</strong> no cabinet NPZ episode data are checked in, so actual arrays could not be inspected for terminal-reward padding, masks, or boundary encoding beyond what the visible writer/loader code implies.</li>
+        </ol>
+      </section>
+
+      <section id="fixes">
+        <h2>Recommended fixes, in order</h2>
+        <ol>
+          <li><strong>Separate online collection and evaluation environments.</strong> Treat this as a data-integrity fix before interpreting any online-training result.</li>
+          <li><strong>Choose and centralize reward semantics.</strong> Relabel both offline and online samples with the same versioned function; preserve raw rewards for migration and debugging.</li>
+          <li><strong>Unify chunk construction.</strong> One implementation should jointly compute action indices, discounted reward, t+H state, episode boundary, and bootstrap mask for every backend.</li>
+          <li><strong>Split boundary from bootstrapping.</strong> Add <code>episode_end</code> and <code>bootstrap_mask</code>; rebuild House datasets so no history crosses truncations.</li>
+          <li><strong>Constrain attention entropy correctly.</strong> Validate target ≤ log K after tokenization and bound the dual consistently.</li>
+          <li><strong>Resolve task-definition discrepancies.</strong> Decide whether cabinet success is consecutive and whether wrong pickup terminates; align code, documentation, and online relabeling.</li>
+          <li><strong>Make replay ratio and reset seeds explicit.</strong> Use one offline/online sampling parameter across storage backends and advance/log environment seeds by episode.</li>
+          <li><strong>Add invariants before retraining.</strong> Test transition state consistency, H-step reward arithmetic, t+H next state, terminal/truncation clamping, offline/online reward parity, and cached observation agreement with simulator state.</li>
+        </ol>
+      </section>
+
+      <section id="verification">
+        <h2>Review and verification notes</h2>
+        <ul>
+          <li>Review revision: <code>389cde0498dfcc166fbe15aac9c4d25eb7a3c83f</code>.</li>
+          <li>Relevant Python modules passed <code>python -m py_compile</code> during the audit.</li>
+          <li>The worktree was clean before this HTML report was added.</li>
+          <li>No training code, environment code, or dataset code was modified.</li>
+          <li>Priority was mathematical correctness and data provenance, not naming, formatting, or general maintainability.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    Generated as a self-contained audit artifact for <span class="mono">/iris/u/ronpo/projects/new_mtql</span>.
+  </footer>
+</body>
+</html>

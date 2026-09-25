@@ -1,0 +1,589 @@
+{
+  "dataset": "/iris/u/ronpo/expo-ft-data/egg_v1",
+  "control_hz": 10.0,
+  "method": {
+    "cue_thresholds_y": [
+      0.2,
+      0.25,
+      0.28
+    ],
+    "history_indices": "t-H*S,...,t-S with episode-start clamping",
+    "decision_endpoint": "first abs(gripper_velocity) > 0.1"
+  },
+  "dataset_summary": {
+    "episodes": 131,
+    "transitions": 33629,
+    "counts": {
+      "black_success": 51,
+      "black_failure": 15,
+      "white_success": 51,
+      "white_failure": 14
+    },
+    "success_length_steps": {
+      "0": 207.0,
+      "5": 237.15,
+      "10": 243.1,
+      "25": 255.25,
+      "50": 276.5,
+      "75": 322.5,
+      "90": 350.0,
+      "95": 361.95,
+      "100": 393.0
+    },
+    "failure_length_steps": {
+      "0": 95.0,
+      "5": 110.8,
+      "10": 115.8,
+      "25": 135.0,
+      "50": 143.0,
+      "75": 161.0,
+      "90": 184.8,
+      "95": 189.79999999999998,
+      "100": 192.0
+    }
+  },
+  "cue_timing": {
+    "0.2": {
+      "duration_seconds": {
+        "0": 3.6,
+        "5": 4.7,
+        "10": 5.1,
+        "25": 5.7,
+        "50": 6.4,
+        "75": 7.4,
+        "90": 8.6,
+        "95": 10.669999999999993,
+        "100": 13.7
+      },
+      "cue_exit_to_grasp_seconds": {
+        "0": 3.7,
+        "5": 5.405,
+        "10": 6.0,
+        "25": 6.9,
+        "50": 8.25,
+        "75": 10.875,
+        "90": 13.08,
+        "95": 13.4,
+        "100": 15.7
+      }
+    },
+    "0.25": {
+      "duration_seconds": {
+        "0": 2.6,
+        "5": 3.7,
+        "10": 3.91,
+        "25": 4.7,
+        "50": 5.4,
+        "75": 6.2,
+        "90": 7.340000000000003,
+        "95": 7.984999999999997,
+        "100": 10.1
+      },
+      "cue_exit_to_grasp_seconds": {
+        "0": 5.1,
+        "5": 6.6,
+        "10": 6.8,
+        "25": 7.4,
+        "50": 8.850000000000001,
+        "75": 11.575,
+        "90": 13.69,
+        "95": 14.094999999999999,
+        "100": 16.4
+      }
+    },
+    "0.28": {
+      "duration_seconds": {
+        "0": 1.3,
+        "5": 2.205,
+        "10": 2.6200000000000006,
+        "25": 3.5,
+        "50": 4.6,
+        "75": 5.5,
+        "90": 6.280000000000001,
+        "95": 6.9,
+        "100": 9.3
+      },
+      "cue_exit_to_grasp_seconds": {
+        "0": 5.4,
+        "5": 7.0,
+        "10": 7.109999999999999,
+        "25": 7.825,
+        "50": 9.3,
+        "75": 12.149999999999999,
+        "90": 14.290000000000001,
+        "95": 14.784999999999997,
+        "100": 16.7
+      }
+    }
+  },
+  "counterfactual_failures": {
+    "failures_reaching_grasp": 11,
+    "wrong_route_at_grasp": 11,
+    "success_grasp_x_median": {
+      "black": 0.4490838944911957,
+      "white": 0.5523407459259033
+    },
+    "route_midpoint_x": 0.5007123202085495
+  },
+  "candidates": [
+    {
+      "history_length": 20,
+      "hist_stride": 7,
+      "span_steps": 140,
+      "span_seconds": 14.0,
+      "sampling_seconds": 0.7,
+      "actor_tokens": 22,
+      "critic_tokens": 47,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 0.9705882352941176,
+          "grasp_at_least_two_cues": 0.9313725490196079,
+          "grasp_mean_cue_samples": 6.931372549019608,
+          "episodes_with_cue_at_every_post_card_step": 0.9705882352941176,
+          "post_card_step_coverage": 0.9979123173277662
+        },
+        "0.25": {
+          "grasp_any_cue": 0.9411764705882353,
+          "grasp_at_least_two_cues": 0.8627450980392157,
+          "grasp_mean_cue_samples": 5.754901960784314,
+          "episodes_with_cue_at_every_post_card_step": 0.9411764705882353,
+          "post_card_step_coverage": 0.9951159951159951
+        },
+        "0.28": {
+          "grasp_any_cue": 0.8823529411764706,
+          "grasp_at_least_two_cues": 0.8333333333333334,
+          "grasp_mean_cue_samples": 4.980392156862745,
+          "episodes_with_cue_at_every_post_card_step": 0.8823529411764706,
+          "post_card_step_coverage": 0.9894634146341463
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 0.8823529411764706,
+        "grasp_at_least_two_cues": 0.8333333333333334,
+        "grasp_mean_cue_samples": 4.980392156862745,
+        "episodes_with_cue_at_every_post_card_step": 0.8823529411764706,
+        "post_card_step_coverage": 0.9894634146341463
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 0.8823529411764706,
+        "core_grasp_any_95pct": [
+          0.8137254901960784,
+          0.9411764705882353
+        ],
+        "core_grasp_two_point": 0.8333333333333334,
+        "core_grasp_two_95pct": [
+          0.7549019607843137,
+          0.9019607843137255
+        ]
+      }
+    },
+    {
+      "history_length": 20,
+      "hist_stride": 8,
+      "span_steps": 160,
+      "span_seconds": 16.0,
+      "sampling_seconds": 0.8,
+      "actor_tokens": 22,
+      "critic_tokens": 47,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 7.323529411764706,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 0.9901960784313726,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 6.049019607843137,
+          "episodes_with_cue_at_every_post_card_step": 0.9901960784313726,
+          "post_card_step_coverage": 0.9995929995929996
+        },
+        "0.28": {
+          "grasp_any_cue": 0.9901960784313726,
+          "grasp_at_least_two_cues": 0.9607843137254902,
+          "grasp_mean_cue_samples": 5.215686274509804,
+          "episodes_with_cue_at_every_post_card_step": 0.9901960784313726,
+          "post_card_step_coverage": 0.9993170731707317
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 0.9901960784313726,
+        "grasp_at_least_two_cues": 0.9607843137254902,
+        "grasp_mean_cue_samples": 5.215686274509804,
+        "episodes_with_cue_at_every_post_card_step": 0.9901960784313726,
+        "post_card_step_coverage": 0.9993170731707317
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 0.9901960784313726,
+        "core_grasp_any_95pct": [
+          0.9705882352941176,
+          1.0
+        ],
+        "core_grasp_two_point": 0.9607843137254902,
+        "core_grasp_two_95pct": [
+          0.9215686274509803,
+          0.9901960784313726
+        ]
+      }
+    },
+    {
+      "history_length": 18,
+      "hist_stride": 10,
+      "span_steps": 180,
+      "span_seconds": 18.0,
+      "sampling_seconds": 1.0,
+      "actor_tokens": 20,
+      "critic_tokens": 45,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 6.323529411764706,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 5.411764705882353,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 4.450980392156863,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 0.9901960784313726,
+        "grasp_mean_cue_samples": 4.450980392156863,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 0.9901960784313726,
+        "core_grasp_two_95pct": [
+          0.9705882352941176,
+          1.0
+        ]
+      }
+    },
+    {
+      "history_length": 20,
+      "hist_stride": 9,
+      "span_steps": 180,
+      "span_seconds": 18.0,
+      "sampling_seconds": 0.9,
+      "actor_tokens": 22,
+      "critic_tokens": 47,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 7.176470588235294,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 5.892156862745098,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9803921568627451,
+          "grasp_mean_cue_samples": 4.931372549019608,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 0.9803921568627451,
+        "grasp_mean_cue_samples": 4.931372549019608,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 0.9803921568627451,
+        "core_grasp_two_95pct": [
+          0.9509803921568627,
+          1.0
+        ]
+      }
+    },
+    {
+      "history_length": 20,
+      "hist_stride": 10,
+      "span_steps": 200,
+      "span_seconds": 20.0,
+      "sampling_seconds": 1.0,
+      "actor_tokens": 22,
+      "critic_tokens": 47,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 6.627450980392157,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 5.53921568627451,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 4.519607843137255,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 0.9901960784313726,
+        "grasp_mean_cue_samples": 4.519607843137255,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 0.9901960784313726,
+        "core_grasp_two_95pct": [
+          0.9705882352941176,
+          1.0
+        ]
+      }
+    },
+    {
+      "history_length": 22,
+      "hist_stride": 8,
+      "span_steps": 176,
+      "span_seconds": 17.6,
+      "sampling_seconds": 0.8,
+      "actor_tokens": 24,
+      "critic_tokens": 49,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 7.931372549019608,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 6.549019607843137,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 5.5588235294117645,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 0.9901960784313726,
+        "grasp_mean_cue_samples": 5.5588235294117645,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 0.9901960784313726,
+        "core_grasp_two_95pct": [
+          0.9705882352941176,
+          1.0
+        ]
+      }
+    },
+    {
+      "history_length": 24,
+      "hist_stride": 7,
+      "span_steps": 168,
+      "span_seconds": 16.8,
+      "sampling_seconds": 0.7,
+      "actor_tokens": 26,
+      "critic_tokens": 51,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 8.656862745098039,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 7.2745098039215685,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 0.9901960784313726,
+          "grasp_mean_cue_samples": 6.1568627450980395,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 0.9901960784313726,
+        "grasp_mean_cue_samples": 6.1568627450980395,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 0.9901960784313726,
+        "core_grasp_two_95pct": [
+          0.9705882352941176,
+          1.0
+        ]
+      }
+    },
+    {
+      "history_length": 25,
+      "hist_stride": 7,
+      "span_steps": 175,
+      "span_seconds": 17.5,
+      "sampling_seconds": 0.7,
+      "actor_tokens": 27,
+      "critic_tokens": 52,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 8.931372549019608,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 7.5,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 6.303921568627451,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 1.0,
+        "grasp_mean_cue_samples": 6.303921568627451,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 1.0,
+        "core_grasp_two_95pct": [
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "history_length": 30,
+      "hist_stride": 7,
+      "span_steps": 210,
+      "span_seconds": 21.0,
+      "sampling_seconds": 0.7,
+      "actor_tokens": 32,
+      "critic_tokens": 57,
+      "threshold_metrics": {
+        "0.2": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 9.617647058823529,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.25": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 7.911764705882353,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        },
+        "0.28": {
+          "grasp_any_cue": 1.0,
+          "grasp_at_least_two_cues": 1.0,
+          "grasp_mean_cue_samples": 6.490196078431373,
+          "episodes_with_cue_at_every_post_card_step": 1.0,
+          "post_card_step_coverage": 1.0
+        }
+      },
+      "robust_minimum": {
+        "grasp_any_cue": 1.0,
+        "grasp_at_least_two_cues": 1.0,
+        "grasp_mean_cue_samples": 6.490196078431373,
+        "episodes_with_cue_at_every_post_card_step": 1.0,
+        "post_card_step_coverage": 1.0
+      },
+      "bootstrap": {
+        "core_grasp_any_point": 1.0,
+        "core_grasp_any_95pct": [
+          1.0,
+          1.0
+        ],
+        "core_grasp_two_point": 1.0,
+        "core_grasp_two_95pct": [
+          1.0,
+          1.0
+        ]
+      }
+    }
+  ]
+}

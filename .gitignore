@@ -1,0 +1,14 @@
+__pycache__
+*.png
+exp
+*.gif
+wandb
+slurm
+exp_data
+dataset_cache/
+robosuite
+cabinet-memory-sim/ManiSkill/cabinet_dataset*
+robocasa
+tests
+.claude
+cabinet-memory-sim/

@@ -1,0 +1,27 @@
+/iris/u/marcelto/miniconda3/bin/conda run -n cabinet-memory-sim pip install \
+  "jax[cuda12-pip]==0.4.17" \
+  "flax" \
+  "optax==0.1.5" \
+  "orbax-checkpoint==0.2.3" \
+  "chex" \
+  "distrax" \
+  "ml_collections" \
+  "absl-py" \
+  "tqdm" \
+  "wandb" \
+  "wandb_osh" \
+  "gymnasium==0.29.1" \
+  "ogbench==1.1.0" \
+  "tensorflow-probability==0.19.0" \
+  "tensorflow-cpu==2.12.0" \
+  "transformers==4.46.3" \
+  "moviepy" \
+  "pandas>=2.0.3,<3.0" \
+  "scikit-learn<1.6" \
+  "scipy<1.13" \
+  "submitit" \
+  "tensorboardX" \
+  "h5py" \
+  "matplotlib" \
+  "seaborn" \
+  -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html

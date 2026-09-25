@@ -1,0 +1,149 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+
+\newcommand{\sg}{\operatorname{stopgrad}}
+\newcommand{\mean}{\operatorname{mean}}
+\newcommand{\clip}{\operatorname{clip}}
+\newcommand{\Agg}{\operatorname{Agg}}
+
+\definecolor{criticpurple}{RGB}{145,0,210}
+\definecolor{teacherblue}{RGB}{15,45,215}
+\definecolor{studentgreen}{RGB}{10,90,30}
+
+\title{MTQL Transformer: One Training Step}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2em}
+
+\noindent\textbf{Input:}
+minibatch $\mathcal B=(o,h,a,r,m,o',h')$;
+teacher $\theta_T$, student $\theta_S$, critic $\phi$,
+target critic $\bar\phi$, entropy parameter $\eta$.
+
+\medskip
+\hrule
+\medskip
+
+\begin{enumerate}
+
+\item \textcolor{criticpurple}{\textbf{Critic target and loss}}
+
+\begin{align*}
+\epsilon' &\sim \mathcal N(0,I),
+&
+a' &\leftarrow \sg\!\left(
+    \clip\!\left(\pi_{\theta_S}(o',h',\epsilon',0),-1,1\right)
+    \right),
+\\
+y &\leftarrow r+\gamma^K m\,
+    \Agg_i\!\left[Q_{\bar\phi,i}(o',h',a')\right],
+&
+(Q_i,H) &\leftarrow \operatorname{Critic}_{\phi}(o,h,a),
+\\
+\mathcal L_{Q,\mathrm{critic}}
+    &\leftarrow \mean_i\!\left[(Q_i-y)^2\right],
+&
+\mathcal L_{\mathrm{attn}}
+    &\leftarrow -\mean\!\left[\sg(\lambda_{\mathrm{clip}})H\right],
+\\
+\mathcal L_{\mathrm{temp}}
+    &\leftarrow \mean\!\left[
+        \lambda_{\eta}\,\sg(H-H_{\mathrm{target}})
+      \right],
+&
+\mathcal L_{\mathrm{critic}}
+    &\leftarrow
+      \mathcal L_{Q,\mathrm{critic}}
+      +\mathcal L_{\mathrm{attn}}
+      +\mathcal L_{\mathrm{temp}}.
+\end{align*}
+
+\item \textcolor{teacherblue}{\textbf{Flow-teacher loss}}
+
+\begin{align*}
+\epsilon_f &\sim\mathcal N(0,I),
+&
+t &\leftarrow 0.999\,\widetilde t+0.001,
+\qquad \widetilde t\sim\operatorname{Beta}(1.5,1),
+\\
+x_t &\leftarrow (1-t)a+t\epsilon_f,
+&
+u_t &\leftarrow \frac{d x_t}{dt}=\epsilon_f-a,
+\\
+\widehat v_t &\leftarrow v_{\theta_T}(o,h,x_t,t),
+&
+\mathcal L_{\mathrm{flow}}
+    &\leftarrow \mean\!\left[\left\|\widehat v_t-u_t\right\|_2^2\right].
+\end{align*}
+
+\item \textcolor{studentgreen}{\textbf{One-step actor losses}}
+
+\begin{align*}
+\epsilon_d &\sim\mathcal N(0,I),
+&
+a_{\mathrm{teacher}}
+    &\leftarrow
+      \sg\!\left(
+        \operatorname{Euler}^{10}_{1\rightarrow0}
+        (v_{\theta_T};o,h,\epsilon_d)
+      \right),
+\\
+a_{\mathrm{student}}
+    &\leftarrow \pi_{\theta_S}(o,h,\epsilon_d,0),
+&
+\mathcal L_{\mathrm{distill}}
+    &\leftarrow \mean\!\left[
+      \left\|a_{\mathrm{student}}-a_{\mathrm{teacher}}\right\|_2^2
+      \right],
+\\
+\mathcal L_{Q,\mathrm{actor}}
+    &\leftarrow
+      -\mean_i\!\left[
+        Q_{\sg(\phi),i}
+        \!\left(o,h,\clip(a_{\mathrm{student}},-1,1)\right)
+      \right],
+&
+\mathcal L_{\mathrm{actor}}
+    &\leftarrow
+      \mathcal L_{\mathrm{flow}}
+      +\alpha\mathcal L_{\mathrm{distill}}
+      +\mathcal L_{Q,\mathrm{actor}}.
+\end{align*}
+
+\item \textbf{Joint update}
+
+\begin{align*}
+\mathcal L_{\mathrm{total}}
+    &\leftarrow \mathcal L_{\mathrm{actor}}
+      +\mathcal L_{\mathrm{critic}},
+\\
+(\theta_T,\theta_S)
+    &\leftarrow
+      \operatorname{ActorOpt}\!\left(
+      \nabla_{\theta_T,\theta_S}\mathcal L_{\mathrm{total}}
+      \right),
+\\
+(\phi,\eta)
+    &\leftarrow
+      \operatorname{CriticOpt}\!\left(
+      \nabla_{\phi,\eta}\mathcal L_{\mathrm{total}}
+      \right),
+\\
+\bar\phi
+    &\leftarrow \tau\phi+(1-\tau)\bar\phi.
+\end{align*}
+
+\item \textbf{Repeat} with the next minibatch.
+
+\end{enumerate}
+
+\medskip
+\hrule
+
+\end{document}

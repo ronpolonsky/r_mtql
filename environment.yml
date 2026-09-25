@@ -1,0 +1,49 @@
+name: tql_env
+channels:
+    - defaults
+    - nvidia
+    - pytorch
+    - pytorch3d
+    - conda-forge
+dependencies:
+    - python=3.8
+    - pip=22.2.2
+    - numpy
+    - scipy
+    - h5py
+    - matplotlib
+    - scikit-learn
+    - jupyter
+    - tqdm
+    - seaborn
+    - Cython=0.29.34
+    - jax=0.4.*
+    - jaxlib=0.4.*=*cuda*
+    - pip:
+      - chex
+      - flax
+      - optax==0.1.5
+      - distrax
+      - gym==0.23.1
+      - easydict
+      - dm_env_wrappers
+      - ogbench
+      - jax-jumpy==1.0.0
+      - orbax-checkpoint==0.2.3
+      - gymnasium==0.29.0
+      - submitit
+      - absl-py
+      - wandb
+      - ml_collections
+      - tensorflow==2.12.0
+      - tensorflow-probability==0.19.0
+      - tensorflow-estimator==2.12.0
+      - tensorboardX
+      - transformers
+      - wandb_osh
+
+
+# - git+https://github.com/Farama-Foundation/D4RL.git@2b96431a0e9fd90c8032624b0dc3cd4514d15632
+# - git+https://github.com/ARISE-Initiative/robomimic@dde3a6e74886e0768cedf18f8f9c813d47d31ebd
+# - git+https://github.com/ARISE-Initiative/robosuite@de64fa5935f9f30ce01b36a3ef1a3242060b9cdb
+# - gymnasium-robotics==1.2.2

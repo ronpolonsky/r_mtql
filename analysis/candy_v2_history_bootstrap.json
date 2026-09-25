@@ -1,0 +1,122 @@
+{
+  "dataset": "/iris/u/ronpo/expo-ft-data/candy_scoop_v2_jitted",
+  "episodes": 144,
+  "successes": 90,
+  "candidates": [
+    {
+      "history_length": 19,
+      "hist_stride": 25,
+      "critic_tokens": 46,
+      "point": {
+        "target3_all_events": 0.8666666666666667,
+        "event_recall": 0.9617834394904459
+      },
+      "bootstrap_95pct": {
+        "target3_all_events": [
+          0.7333333333333333,
+          0.8666666666666667,
+          0.9666666666666667
+        ],
+        "event_recall": [
+          0.93125,
+          0.9620253164556962,
+          0.9872611464968153
+        ]
+      },
+      "bootstrap_samples": 2000,
+      "seed": 20260912
+    },
+    {
+      "history_length": 20,
+      "hist_stride": 25,
+      "critic_tokens": 47,
+      "point": {
+        "target3_all_events": 0.9,
+        "event_recall": 0.9681528662420382
+      },
+      "bootstrap_95pct": {
+        "target3_all_events": [
+          0.7666666666666667,
+          0.9,
+          1.0
+        ],
+        "event_recall": [
+          0.9415118679050568,
+          0.9683544303797469,
+          0.9932885906040269
+        ]
+      },
+      "bootstrap_samples": 2000,
+      "seed": 20260913
+    },
+    {
+      "history_length": 21,
+      "hist_stride": 24,
+      "critic_tokens": 48,
+      "point": {
+        "target3_all_events": 0.8,
+        "event_recall": 0.9554140127388535
+      },
+      "bootstrap_95pct": {
+        "target3_all_events": [
+          0.6333333333333333,
+          0.8,
+          0.9333333333333333
+        ],
+        "event_recall": [
+          0.9249882075471698,
+          0.9556962025316456,
+          0.9807722929936306
+        ]
+      },
+      "bootstrap_samples": 2000,
+      "seed": 20260914
+    },
+    {
+      "history_length": 23,
+      "hist_stride": 25,
+      "critic_tokens": 50,
+      "point": {
+        "target3_all_events": 0.9,
+        "event_recall": 0.9681528662420382
+      },
+      "bootstrap_95pct": {
+        "target3_all_events": [
+          0.7666666666666667,
+          0.9,
+          1.0
+        ],
+        "event_recall": [
+          0.9404672797262618,
+          0.9685534591194969,
+          0.9933333333333333
+        ]
+      },
+      "bootstrap_samples": 2000,
+      "seed": 20260915
+    },
+    {
+      "history_length": 25,
+      "hist_stride": 20,
+      "critic_tokens": 52,
+      "point": {
+        "target3_all_events": 0.8666666666666667,
+        "event_recall": 0.9617834394904459
+      },
+      "bootstrap_95pct": {
+        "target3_all_events": [
+          0.7333333333333333,
+          0.8666666666666667,
+          0.9666666666666667
+        ],
+        "event_recall": [
+          0.927710843373494,
+          0.9620253164556962,
+          0.9878806133625411
+        ]
+      },
+      "bootstrap_samples": 2000,
+      "seed": 20260916
+    }
+  ]
+}

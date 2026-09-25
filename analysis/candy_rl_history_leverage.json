@@ -1,0 +1,135 @@
+{
+  "dataset": "/iris/u/ronpo/expo-ft-data/candy_scoop",
+  "criterion": {
+    "description": "Target-3 and multi-target terminal history coverage, with target-3 weighted most heavily. This is a data-coverage proxy for reward credit assignment, not a model-performance prediction. Ordered-history diagnostics compare a simple reward-separability proxy against bagged and current-only geometry features.",
+    "candidates": [
+      [
+        18,
+        30
+      ],
+      [
+        22,
+        24
+      ],
+      [
+        23,
+        24
+      ],
+      [
+        23,
+        25
+      ]
+    ]
+  },
+  "episodes": {
+    "total": 200,
+    "successes": 150,
+    "failures": 50
+  },
+  "results": [
+    {
+      "history_length": 18,
+      "hist_stride": 30,
+      "span_steps": 540,
+      "span_seconds": 54.0,
+      "sampling_seconds": 3.0,
+      "critic_tokens": 45,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 0.98,
+        "3": 0.98
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 0.99,
+        "3": 0.9933333333333333
+      },
+      "multi_target_terminal_all_events": 0.98,
+      "terminal_event_recall": 0.9933333333333333,
+      "rl_credit_coverage_proxy": 0.9826666666666667,
+      "reward_balanced_accuracy_ordered": 0.9199999999999999,
+      "reward_balanced_accuracy_bagged": 0.8533333333333333,
+      "reward_balanced_accuracy_current": 0.59,
+      "ordered_history_gain_over_bagged": 0.06666666666666665,
+      "ordered_history_gain_over_current": 0.32999999999999996
+    },
+    {
+      "history_length": 22,
+      "hist_stride": 24,
+      "span_steps": 528,
+      "span_seconds": 52.8,
+      "sampling_seconds": 2.4,
+      "critic_tokens": 49,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.98
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.9933333333333333
+      },
+      "multi_target_terminal_all_events": 0.99,
+      "terminal_event_recall": 0.9966666666666667,
+      "rl_credit_coverage_proxy": 0.9863333333333333,
+      "reward_balanced_accuracy_ordered": 0.9199999999999999,
+      "reward_balanced_accuracy_bagged": 0.83,
+      "reward_balanced_accuracy_current": 0.59,
+      "ordered_history_gain_over_bagged": 0.08999999999999997,
+      "ordered_history_gain_over_current": 0.32999999999999996
+    },
+    {
+      "history_length": 23,
+      "hist_stride": 24,
+      "span_steps": 552,
+      "span_seconds": 55.2,
+      "sampling_seconds": 2.4,
+      "critic_tokens": 50,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.98
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 0.9933333333333333
+      },
+      "multi_target_terminal_all_events": 0.99,
+      "terminal_event_recall": 0.9966666666666667,
+      "rl_credit_coverage_proxy": 0.9863333333333333,
+      "reward_balanced_accuracy_ordered": 0.9066666666666666,
+      "reward_balanced_accuracy_bagged": 0.83,
+      "reward_balanced_accuracy_current": 0.59,
+      "ordered_history_gain_over_bagged": 0.07666666666666666,
+      "ordered_history_gain_over_current": 0.31666666666666665
+    },
+    {
+      "history_length": 23,
+      "hist_stride": 25,
+      "span_steps": 575,
+      "span_seconds": 57.5,
+      "sampling_seconds": 2.5,
+      "critic_tokens": 50,
+      "target_terminal_all_events": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 1.0
+      },
+      "target_terminal_event_recall": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 1.0
+      },
+      "multi_target_terminal_all_events": 1.0,
+      "terminal_event_recall": 1.0,
+      "rl_credit_coverage_proxy": 1.0,
+      "reward_balanced_accuracy_ordered": 0.9,
+      "reward_balanced_accuracy_bagged": 0.81,
+      "reward_balanced_accuracy_current": 0.59,
+      "ordered_history_gain_over_bagged": 0.08999999999999997,
+      "ordered_history_gain_over_current": 0.31000000000000005
+    }
+  ]
+}

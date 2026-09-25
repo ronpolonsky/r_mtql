@@ -1,0 +1,266 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Normal}{\mathcal{N}}
+\newcommand{\Lflow}{\mathcal{L}_{\mathrm{flow}}}
+
+\title{How the MTQL Flow Teacher Is Trained}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{The short answer}
+
+The action chunk sampled from the replay buffer is the clean endpoint of a path.
+It is \emph{not} directly used as the teacher's output label.  The code first
+constructs a straight path from the data action chunk to Gaussian noise, and
+then uses the derivative of that path as the target velocity:
+
+\begin{equation}
+    \boxed{
+    x_t=(1-t)a+t\epsilon
+    \quad\Longrightarrow\quad
+    u_t=\frac{d x_t}{dt}=\epsilon-a
+    }
+    \label{eq:key}
+\end{equation}
+
+Thus, the teacher's supervised training pair is
+
+\begin{equation}
+    \boxed{
+    (o,h,x_t,t) \longmapsto u_t=\epsilon-a
+    }.
+\end{equation}
+
+Here, $o$ is the current observation, $h$ is its history, and $a$ is the
+corresponding action chunk stored in the replay buffer.
+
+\section{Construction of one training example}
+
+Let the action chunk have $K$ time steps and action dimension $d$:
+
+\begin{equation}
+    a\in\mathbb{R}^{K\times d}.
+\end{equation}
+
+For every item in a sampled minibatch, the code performs the following steps.
+
+\subsection*{Step 1: take a data action chunk}
+
+\begin{equation}
+    a \leftarrow \texttt{batch['actions']}.
+\end{equation}
+
+This is an action chunk stored in the offline or online replay buffer.
+
+\subsection*{Step 2: sample a noise endpoint}
+
+\begin{equation}
+    \epsilon\sim\Normal(0,I),
+    \qquad
+    \epsilon\in\mathbb{R}^{K\times d}.
+\end{equation}
+
+The noise has exactly the same shape as the action chunk.
+
+\subsection*{Step 3: sample a position along the path}
+
+The implementation samples one scalar $t$ per batch item:
+
+\begin{equation}
+    t=0.999\,\widetilde{t}+0.001,
+    \qquad
+    \widetilde{t}\sim\operatorname{Beta}(1.5,1).
+\end{equation}
+
+That scalar is broadcast across all $K\times d$ entries of the action chunk.
+
+\subsection*{Step 4: construct the partially noised input}
+
+\begin{equation}
+    x_t=(1-t)a+t\epsilon.
+    \label{eq:path}
+\end{equation}
+
+This is a convex interpolation, not the sum $a+\epsilon$:
+
+\begin{align}
+    t=0 &\quad\Longrightarrow\quad x_0=a,
+    \\
+    0<t<1 &\quad\Longrightarrow\quad x_t
+        \text{ is partly action and partly noise},
+    \\
+    t=1 &\quad\Longrightarrow\quad x_1=\epsilon.
+\end{align}
+
+\subsection*{Step 5: differentiate the chosen path}
+
+This is the crucial construction.  Differentiating
+Equation~\eqref{eq:path} with respect to $t$ gives
+
+\begin{align}
+    \frac{d x_t}{dt}
+    &=\frac{d}{dt}\left((1-t)a+t\epsilon\right)
+    \\
+    &=-a+\epsilon
+    \\
+    &=\epsilon-a.
+\end{align}
+
+Therefore the exact velocity of the chosen straight path is
+
+\begin{equation}
+    \boxed{u_t=\epsilon-a.}
+\end{equation}
+
+The target is not guessed, annotated, or obtained from a separate model.  It
+is known analytically because the training procedure itself selected both
+endpoints $a$ and $\epsilon$ and defined the path between them.
+
+\section{What the teacher predicts}
+
+The flow teacher receives the observation context, the interpolated action
+chunk, and the time:
+
+\begin{equation}
+    \widehat{v}_t
+    =v_{\theta_T}(o,h,x_t,t).
+\end{equation}
+
+Its output has the same shape as $a$, $\epsilon$, $x_t$, and $u_t$:
+
+\begin{equation}
+    \widehat{v}_t\in\mathbb{R}^{K\times d}.
+\end{equation}
+
+The flow-matching objective is
+
+\begin{equation}
+    \boxed{
+    \Lflow
+    =\E_{(o,h,a),\epsilon,t}
+      \left[
+      \left\|
+      v_{\theta_T}(o,h,x_t,t)-(\epsilon-a)
+      \right\|_2^2
+      \right].
+    }
+\end{equation}
+
+Across many data actions, noise samples, and times, this regression teaches
+the network the conditional vector field associated with the action
+distribution given $(o,h)$.  No reward or $Q$ value appears in this loss.
+
+\section{Numerical example}
+
+Consider a two-dimensional action rather than a full action chunk:
+
+\begin{equation}
+    a=egin{bmatrix}2\\1\end{bmatrix},
+    \qquad
+    \epsilon=egin{bmatrix}-1\\3\end{bmatrix},
+    \qquad
+    t=0.25.
+\end{equation}
+
+The input shown to the teacher is
+
+\begin{align}
+    x_{0.25}
+    &=0.75a+0.25\epsilon
+    \\
+    &=0.75\begin{bmatrix}2\\1\end{bmatrix}
+      +0.25\begin{bmatrix}-1\\3\end{bmatrix}
+    \\
+    &=\begin{bmatrix}1.25\\1.50\end{bmatrix}.
+\end{align}
+
+The regression target is the path velocity
+
+\begin{equation}
+    u_t=\epsilon-a
+    =\begin{bmatrix}-1\\3\end{bmatrix}
+     -\begin{bmatrix}2\\1\end{bmatrix}
+    =\begin{bmatrix}-3\\2\end{bmatrix}.
+\end{equation}
+
+So this single supervised example is conceptually
+
+\begin{equation}
+    \left(o,h,
+    x_t=\begin{bmatrix}1.25\\1.50\end{bmatrix},
+    t=0.25\right)
+    \longmapsto
+    \begin{bmatrix}-3\\2\end{bmatrix}.
+\end{equation}
+
+\section{Why generation runs from noise to actions}
+
+The velocity $\epsilon-a$ is defined in the forward direction from data at
+$t=0$ to noise at $t=1$.  Generation starts at the opposite endpoint,
+
+\begin{equation}
+    x_1=\epsilon,
+\end{equation}
+
+and integrates using a negative time step.  If $\Delta t>0$, one reverse Euler
+step is
+
+\begin{equation}
+    x_{t-\Delta t}
+    =x_t-\Delta t\,
+      v_{\theta_T}(o,h,x_t,t).
+\end{equation}
+
+After repeatedly stepping from $t=1$ to $t=0$, the final $x_0$ is the generated
+action chunk.  Different initial noise chunks can produce different action
+chunks for the same observation context.
+
+\section{Summary of the four quantities}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Quantity & Meaning & Role \\
+\midrule
+$a$ & replay action chunk & clean endpoint \\
+$\epsilon$ & sampled Gaussian chunk & noise endpoint \\
+$x_t=(1-t)a+t\epsilon$ & interpolated chunk & teacher input \\
+$u_t=\epsilon-a$ & derivative of the path & teacher label \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Code correspondence}
+
+The construction appears in
+\texttt{agents/mtql\_transformer.py}, lines 138--159:
+
+\begin{verbatim}
+actions = batch['actions']
+noise = jax.random.normal(noise_rng, actions.shape)
+x_t = time_expanded * noise + (1 - time_expanded) * actions
+u_t = noise - actions
+pred_vel = self.network.select('actor_bc_flow')(..., x_t, time[:, None], ...)
+loss = jnp.mean((pred_vel - u_t) ** 2)
+\end{verbatim}
+
+\begin{center}
+\fbox{%
+\parbox{0.88\linewidth}{
+The replay action $a$ supplies the clean endpoint.  The noised input is the
+interpolation $x_t=(1-t)a+t\epsilon$.  The target is the analytically known
+path derivative $u_t=\epsilon-a$.
+}}
+\end{center}
+
+\end{document}
