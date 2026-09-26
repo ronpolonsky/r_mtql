@@ -29,6 +29,7 @@ if str(EXPO_ROOT) not in sys.path:
     sys.path.insert(0, str(EXPO_ROOT))
 
 import eval_mtql_droid as base_eval
+from client.real_utils.vis_utils import save_episode_video
 from utils.mtql_droid import _stack_observations, convert_droid_observation
 from utils.mtql_shuffle_device_cache import build_shuffle_history_indices
 
@@ -139,6 +140,23 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
     _latest_cues: tuple[Mapping[str, Any], ...] = ()
 
     def __init__(self, *args, **kwargs):
+        self._local_video_enabled = bool(
+            FLAGS.video_dir or FLAGS.full_video_dir
+        )
+        self._local_video_frames = []
+        self._full_video_frames = []
+        self._local_video_episode = 0
+
+        # When making the optional evaluator-side recordings, do not also ask
+        # the service to record. Otherwise the service would record the
+        # pre-control polling frames into the normal raw video as well.
+        if FLAGS.full_video_dir:
+            request = kwargs.get("env_creation_request")
+            if request is not None:
+                request = dict(request)
+                request["video_dir"] = ""
+                kwargs["env_creation_request"] = request
+
         super().__init__(*args, **kwargs)
         self._motion_started = False
         try:
@@ -162,11 +180,98 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
     def latest_cues(cls) -> Sequence[Mapping[str, Any]]:
         return cls._latest_cues
 
+    @staticmethod
+    def _video_frame(observation: Mapping[str, Any]) -> np.ndarray | None:
+        """Build the same side-plus-wrist frame used by the service video."""
+        try:
+            side = np.asarray(observation["exterior_image_1_left"])
+            wrist = np.asarray(observation["wrist_image_left"])
+        except (KeyError, TypeError):
+            return None
+        if side.ndim != 3 or wrist.ndim != 3:
+            return None
+        if side.shape[-1] != 3 or wrist.shape[-1] != 3:
+            return None
+        if side.dtype != np.uint8:
+            side = np.clip(side, 0, 255).astype(np.uint8)
+        if wrist.dtype != np.uint8:
+            wrist = np.clip(wrist, 0, 255).astype(np.uint8)
+        if side.shape[:2] != wrist.shape[:2]:
+            return None
+        return np.concatenate([side, wrist], axis=1)
+
+    def _record_local_frame(
+        self, observation: Mapping[str, Any], *, policy_visible: bool
+    ) -> None:
+        if not self._local_video_enabled:
+            return
+        frame = self._video_frame(observation)
+        if frame is None:
+            return
+        self._full_video_frames.append(frame)
+        if policy_visible:
+            self._local_video_frames.append(frame)
+
+    def _flush_local_videos(self, *, save: bool) -> None:
+        if not self._local_video_enabled:
+            return
+        if save:
+            if FLAGS.video_dir and self._local_video_frames:
+                save_episode_video(
+                    self._local_video_frames,
+                    FLAGS.video_dir,
+                    self._local_video_episode,
+                    prefix="raw",
+                )
+            if FLAGS.full_video_dir and self._full_video_frames:
+                save_episode_video(
+                    self._full_video_frames,
+                    FLAGS.full_video_dir,
+                    self._local_video_episode,
+                    prefix="full",
+                )
+        self._local_video_frames = []
+        self._full_video_frames = []
+
+    def _wait_for_start_with_full_video(self) -> None:
+        """Poll observations while waiting for the second SPACE press."""
+        print(
+            "Press SPACE to start Shuffle policy control. "
+            "Recording the full pre-control interval...",
+            flush=True,
+        )
+        file_descriptor = os.open("/dev/tty", os.O_RDONLY)
+        previous_settings = termios.tcgetattr(file_descriptor)
+        try:
+            tty.setcbreak(file_descriptor)
+            poll_period = 1.0 / max(float(FLAGS.config_task.control_hz), 1.0)
+            while True:
+                poll_start = time.monotonic()
+                observation = super().get_observation()
+                self._record_local_frame(observation, policy_visible=False)
+                readable, _, _ = select.select(
+                    [file_descriptor], [], [], max(
+                        0.0, poll_period - (time.monotonic() - poll_start)
+                    )
+                )
+                if readable and b" " in os.read(file_descriptor, 64):
+                    return
+        finally:
+            termios.tcsetattr(
+                file_descriptor,
+                termios.TCSADRAIN,
+                previous_settings,
+            )
+            os.close(file_descriptor)
+
     def reset(self, eval_episode=None, eval_num_episodes=None):
+        self._flush_local_videos(save=False)
+        self._local_video_episode = int(eval_episode or (self._local_video_episode + 1))
         reset_observation = super().reset(
             eval_episode=eval_episode,
             eval_num_episodes=eval_num_episodes,
         )
+        self._record_local_frame(reset_observation, policy_visible=True)
         _wait_for_local_space(
             "Reset complete. Press SPACE to capture seven stationary Shuffle cues."
         )
@@ -180,7 +285,9 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
         for cue_index in range(int(FLAGS.shuffle_cue_frames)):
             if cue_index:
                 time.sleep(cue_period)
-            cues.append(super().get_observation())
+            cue = super().get_observation()
+            cues.append(cue)
+            self._record_local_frame(cue, policy_visible=True)
             print(
                 f"Captured Shuffle cue {cue_index + 1}/"
                 f"{FLAGS.shuffle_cue_frames}",
@@ -197,7 +304,10 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
 
     def get_observation(self):
         if not self._motion_started:
-            _wait_for_local_space("Press SPACE to start Shuffle policy control.")
+            if FLAGS.full_video_dir:
+                self._wait_for_start_with_full_video()
+            else:
+                _wait_for_local_space("Press SPACE to start Shuffle policy control.")
             self._motion_started = True
             print("Starting Shuffle policy control.", flush=True)
             print(
@@ -205,7 +315,9 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
                 "reset/failure, 3 to keep going, or 4 to discard, then ENTER.",
                 flush=True,
             )
-        return super().get_observation()
+        observation = super().get_observation()
+        self._record_local_frame(observation, policy_visible=True)
+        return observation
 
     def get_info_for_step(self):
         manual_choice = _poll_local_manual_choice()
@@ -225,7 +337,11 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
                 response["mask"],
             )
 
-        return self._call("get_info_for_step", request_info)
+        result = self._call("get_info_for_step", request_info)
+        done, success, _, _ = result
+        if done:
+            self._flush_local_videos(save=success is not None)
+        return result
 
 
 class ShuffleHistoryBuffer(base_eval.DroidHistoryBuffer):

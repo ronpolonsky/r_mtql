@@ -130,6 +130,12 @@ flags.DEFINE_string(
     "Optional server-side directory for evaluation videos.",
 )
 flags.DEFINE_string(
+    "full_video_dir",
+    None,
+    "Optional evaluator-side directory for uninterrupted Shuffle videos, "
+    "including the interval between the two SPACE presses.",
+)
+flags.DEFINE_string(
     "history_debug_dir",
     None,
     "Optional directory for first-policy-step history contact sheets and NPZs.",
@@ -184,10 +190,14 @@ def _write_results(path: Path, results: dict) -> None:
     temporary.replace(path)
 
 
-def _save_history_debug(payload, output_dir: Path, episode: int) -> None:
-    """Save the exact history supplied to the first policy call of an episode."""
+def _save_history_debug(
+    payload, output_dir: Path, episode: int, step: int
+) -> None:
+    """Save the exact history supplied to one policy replanning call."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    stem = output_dir / f"episode_{int(episode):03d}_history"
+    stem = output_dir / (
+        f"episode_{int(episode):03d}_step_{int(step):04d}_history"
+    )
     np.savez_compressed(stem.with_suffix(".npz"), **payload)
 
     for key, filename in (
@@ -460,6 +470,7 @@ def main(argv):
         "max_episode_steps": int(FLAGS.config_task.auto_reset_steps),
         "control_hz": float(FLAGS.config_task.control_hz),
         "video_dir": FLAGS.video_dir,
+        "full_video_dir": getattr(FLAGS, "full_video_dir", None),
         "gripper_mode": gripper_mode,
         "episodes_requested": int(FLAGS.num_episodes),
         "gripper_diagnostics": [],
@@ -663,7 +674,6 @@ def main(argv):
         success = False
         done = False
         episode_steps = 0
-        history_debug_saved = False
 
         for step in range(max_episode_steps):
             loop_start = time.monotonic()
@@ -694,16 +704,15 @@ def main(argv):
                     history_buffer.history_observations()
                 )
                 if (
-                    not history_debug_saved
-                    and FLAGS.history_debug_dir
+                    FLAGS.history_debug_dir
                     and hasattr(history_buffer, "history_debug_payload")
                 ):
                     _save_history_debug(
                         history_buffer.history_debug_payload(),
                         Path(FLAGS.history_debug_dir),
                         eval_episode,
+                        episode_steps,
                     )
-                    history_debug_saved = True
 
                 sampling_rng, action_rng = jax.random.split(sampling_rng)
                 sample_kwargs = {
