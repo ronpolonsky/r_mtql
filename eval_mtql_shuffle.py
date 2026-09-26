@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Evaluate Shuffle edited5 checkpoints with evaluator-owned SPACE gates.
+"""Evaluate Shuffle edited7 checkpoints with evaluator-owned SPACE gates.
 
-The rollout service is unchanged. This wrapper captures five stationary cue
+The rollout service is unchanged. This wrapper captures seven stationary cue
 observations and uses the exact virtual-cue history layout used in training.
 """
 
@@ -9,13 +9,24 @@ from __future__ import annotations
 
 import os
 import select
+import sys
 import termios
 import time
 import tty
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
 from absl import app, flags
+
+# Keep standalone evaluator launches consistent with the service adapter and
+# training launchers. ``eval_mtql_droid`` imports ``expo_ft`` at module import
+# time, so relying on the caller's PYTHONPATH can fail before Shuffle settings
+# are validated.
+PROJECT_ROOT = Path(__file__).resolve().parent
+EXPO_ROOT = PROJECT_ROOT.parent / "expo-ft"
+if str(EXPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXPO_ROOT))
 
 import eval_mtql_droid as base_eval
 from utils.mtql_droid import _stack_observations, convert_droid_observation
@@ -23,15 +34,20 @@ from utils.mtql_shuffle_device_cache import build_shuffle_history_indices
 
 
 FLAGS = base_eval.FLAGS
-FLAGS.set_default("hist_length", 10)
-FLAGS.set_default("hist_stride", 4)
+FLAGS.set_default("hist_length", 14)
+FLAGS.set_default("hist_stride", 6)
 FLAGS.set_default("cue_mode", "none")
 FLAGS.set_default("gripper_mode", "policy")
 FLAGS.set_default("inject_training_gripper_state", False)
 
+
+def _shuffle_cue_frame_count() -> int:
+    """Read the cue-frame value safely before or after Abseil parsing."""
+    return int(FLAGS["shuffle_cue_frames"].value)
+
 flags.DEFINE_integer(
     "shuffle_cue_frames",
-    5,
+    7,
     "Number of stationary cue observations captured before policy control.",
 )
 flags.DEFINE_float(
@@ -39,6 +55,30 @@ flags.DEFINE_float(
     0.0,
     "Cue capture rate; zero uses the task control_hz.",
 )
+
+
+def shuffle_history_indices_for_anchor(
+    local_anchor: int,
+    size: int,
+    *,
+    hist_length: int,
+    hist_stride: int,
+    cue_frames: int = 7,
+) -> np.ndarray:
+    """Return one live history row using the production training builder."""
+    if local_anchor < 0 or size <= local_anchor:
+        raise ValueError(
+            f"Expected 0 <= local_anchor < size, got {local_anchor}, {size}."
+        )
+    history_indices, _ = build_shuffle_history_indices(
+        np.asarray([0], dtype=np.int64),
+        np.asarray([size - 1], dtype=np.int64),
+        size=int(size),
+        hist_length=int(hist_length),
+        hist_stride=int(hist_stride),
+        cue_frames=int(cue_frames),
+    )
+    return history_indices[int(local_anchor)]
 
 
 def _wait_for_local_space(prompt: str) -> None:
@@ -128,7 +168,7 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
             eval_num_episodes=eval_num_episodes,
         )
         _wait_for_local_space(
-            "Reset complete. Press SPACE to capture five stationary Shuffle cues."
+            "Reset complete. Press SPACE to capture seven stationary Shuffle cues."
         )
 
         cue_hz = float(FLAGS.shuffle_cue_hz)
@@ -150,7 +190,7 @@ class ShuffleRolloutClient(base_eval.EnvClientWrapper):
         type(self)._latest_cues = tuple(cues)
         self._motion_started = False
         print(
-            "Five cues captured. Robot motion remains locked until the second SPACE.",
+            "Seven cues captured. Robot motion remains locked until the second SPACE.",
             flush=True,
         )
         return reset_observation
@@ -194,7 +234,7 @@ class ShuffleHistoryBuffer(base_eval.DroidHistoryBuffer):
     def reset(self, initial_observation: Mapping[str, Any]) -> None:
         del initial_observation
         cues = ShuffleRolloutClient.latest_cues()
-        expected = int(FLAGS.shuffle_cue_frames)
+        expected = _shuffle_cue_frame_count()
         if len(cues) != expected:
             raise RuntimeError(
                 f"Expected exactly {expected} captured cues; received {len(cues)}."
@@ -208,7 +248,7 @@ class ShuffleHistoryBuffer(base_eval.DroidHistoryBuffer):
             )
             for cue in cues
         ]
-        # The next current observation is real trajectory index five. It is
+        # The next current observation is real trajectory index seven. It is
         # appended only after the action selected from it is executed.
         self._anchor = expected
 
@@ -234,15 +274,13 @@ class ShuffleHistoryBuffer(base_eval.DroidHistoryBuffer):
         # Reuse the production training function instead of duplicating its
         # virtual expansion formula in the evaluator.
         table_size = self._anchor + 1
-        history_indices, _ = build_shuffle_history_indices(
-            np.asarray([0], dtype=np.int64),
-            np.asarray([table_size - 1], dtype=np.int64),
-            size=table_size,
+        indices = shuffle_history_indices_for_anchor(
+            self._anchor,
+            table_size,
             hist_length=int(self.hist_length),
             hist_stride=int(self.hist_stride),
-            cue_frames=int(FLAGS.shuffle_cue_frames),
+            cue_frames=_shuffle_cue_frame_count(),
         )
-        indices = history_indices[self._anchor]
         if np.any(indices >= len(self._observations)):
             raise RuntimeError(
                 "Shuffle history selected the current observation before its "
@@ -252,12 +290,27 @@ class ShuffleHistoryBuffer(base_eval.DroidHistoryBuffer):
             [self._observations[int(index)] for index in indices]
         )
 
+    def history_debug_payload(self) -> dict[str, np.ndarray]:
+        """Return selected indices and frames for history debugging."""
+        table_size = self._anchor + 1
+        indices = shuffle_history_indices_for_anchor(
+            self._anchor,
+            table_size,
+            hist_length=int(self.hist_length),
+            hist_stride=int(self.hist_stride),
+            cue_frames=_shuffle_cue_frame_count(),
+        )
+        history = _stack_observations(
+            [self._observations[int(index)] for index in indices]
+        )
+        return {"indices": np.asarray(indices, dtype=np.int64), **history}
+
 
 def _validate_settings() -> None:
     required = {
-        "hist_length": (FLAGS.hist_length, 10),
-        "hist_stride": (FLAGS.hist_stride, 4),
-        "shuffle_cue_frames": (FLAGS.shuffle_cue_frames, 5),
+        "hist_length": (FLAGS.hist_length, 14),
+        "hist_stride": (FLAGS.hist_stride, 6),
+        "shuffle_cue_frames": (_shuffle_cue_frame_count(), 7),
         "cue_mode": (FLAGS.cue_mode, "none"),
         "gripper_mode": (FLAGS.gripper_mode, "policy"),
         "inject_training_gripper_state": (
@@ -272,7 +325,7 @@ def _validate_settings() -> None:
     ]
     if mismatches:
         raise ValueError(
-            "Invalid Shuffle edited5 evaluation settings: "
+            "Invalid Shuffle edited7 evaluation settings: "
             + ", ".join(mismatches)
         )
     if str(FLAGS.config_task.get("env_name", "")).lower() != "shuffle":
@@ -284,6 +337,7 @@ def main(argv):
     inference_agents = {
         "mtql_transformer_success_actor_real": "mtql_transformer_real",
         "mtql_mlp_success_actor_real": "mtql_mlp_real",
+        "new_bc_flow_transformer_real": "new_bc_flow_transformer_real",
     }
     training_name = FLAGS.agent.get("agent_name")
     if training_name in inference_agents:

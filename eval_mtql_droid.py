@@ -14,6 +14,7 @@ from pathlib import Path
 from absl import app, flags
 import jax
 import numpy as np
+from PIL import Image, ImageDraw
 from ml_collections import config_flags
 
 from agents import agents
@@ -129,6 +130,11 @@ flags.DEFINE_string(
     "Optional server-side directory for evaluation videos.",
 )
 flags.DEFINE_string(
+    "history_debug_dir",
+    None,
+    "Optional directory for first-policy-step history contact sheets and NPZs.",
+)
+flags.DEFINE_string(
     "results_dir",
     None,
     "Directory for evaluation results. Defaults to the restored experiment's "
@@ -176,6 +182,28 @@ def _write_results(path: Path, results: dict) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(results, indent=2, sort_keys=True) + "\n")
     temporary.replace(path)
+
+
+def _save_history_debug(payload, output_dir: Path, episode: int) -> None:
+    """Save the exact history supplied to the first policy call of an episode."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    stem = output_dir / f"episode_{int(episode):03d}_history"
+    np.savez_compressed(stem.with_suffix(".npz"), **payload)
+
+    for key, filename in (
+        ("image", stem.with_name(stem.name + "_base.png")),
+        ("wrist_image", stem.with_name(stem.name + "_wrist.png")),
+    ):
+        frames = np.asarray(payload[key])
+        if frames.ndim != 4 or frames.shape[-1] != 3:
+            continue
+        height, width = frames.shape[1:3]
+        canvas = Image.new("RGB", (width * len(frames), height + 24), "white")
+        draw = ImageDraw.Draw(canvas)
+        for index, frame in enumerate(frames):
+            canvas.paste(Image.fromarray(frame.astype(np.uint8)), (index * width, 24))
+            draw.text((index * width + 3, 4), str(int(payload["indices"][index])), fill="black")
+        canvas.save(filename)
 
 
 def _update_result_summary(results: dict) -> None:
@@ -635,6 +663,7 @@ def main(argv):
         success = False
         done = False
         episode_steps = 0
+        history_debug_saved = False
 
         for step in range(max_episode_steps):
             loop_start = time.monotonic()
@@ -664,6 +693,17 @@ def main(argv):
                 history_observations = (
                     history_buffer.history_observations()
                 )
+                if (
+                    not history_debug_saved
+                    and FLAGS.history_debug_dir
+                    and hasattr(history_buffer, "history_debug_payload")
+                ):
+                    _save_history_debug(
+                        history_buffer.history_debug_payload(),
+                        Path(FLAGS.history_debug_dir),
+                        eval_episode,
+                    )
+                    history_debug_saved = True
 
                 sampling_rng, action_rng = jax.random.split(sampling_rng)
                 sample_kwargs = {
